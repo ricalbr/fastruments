@@ -1,2 +1,2 @@
 # fastruments
-FAST Group's instrument library
+FAST Group's instruments python library
