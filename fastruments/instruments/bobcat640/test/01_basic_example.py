@@ -4,17 +4,20 @@ Basic example
 
 # import all from high level API
 import sys
+
 from xenics.xeneth import *
 from xenics.xeneth.errors import XenethAPIException
+
 
 def save_as_bin(data, file_path):
     """
     Save data as binary file
     """
-    with open(file_path, 'wb') as f:
+    with open(file_path, "wb") as f:
         f.write(data)
 
-    # Result can viewed with ImageJ: File > Import > Raw > 16-bit unsigned, Little-endian byte order 
+    # Result can viewed with ImageJ: File > Import > Raw > 16-bit unsigned, Little-endian byte order
+
 
 def main(url):
     """
@@ -41,7 +44,7 @@ def main(url):
                 print("Image Captured.")
                 # Save the frame as binary
                 save_as_bin(buffer.image_data, "image_with_overlay.bin")
-                
+
         else:
             print("Initialization failed")
 
@@ -60,10 +63,11 @@ def main(url):
             except XenethAPIException as e:
                 print(e.message)
 
-if __name__ == '__main__':
-        
+
+if __name__ == "__main__":
+
     url = "cam://0"
     if len(sys.argv) > 1:
         url = sys.argv[1]
-    
+
     main(url)

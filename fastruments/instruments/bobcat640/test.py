@@ -6,7 +6,8 @@
 # """
 
 from Bobcat640 import Bobcat640
-cam = Bobcat640(url='gev://192.168.1.11')
+
+cam = Bobcat640(url="gev://192.168.1.11")
 
 cam.start()
 frame16 = cam.snap()
@@ -14,7 +15,7 @@ frame16 = cam.snap()
 # cam.set_exposure(0.004)
 # cam.set_framerate(50.0)
 cam.stop()
-print('sono collegato')
+print("sono collegato")
 cam.close()
 
 
@@ -58,7 +59,7 @@ cam.close()
 #         c.wait_recording(5)
 #         meta = c.stop_recording()
 #         utils.create_envi_hdr(meta, 'myfile.hdr')
-    
+
 #     # window.close()
 #     # from xevacam.envi import ENVIImage
 #     # with ENVIImage('myfile.bin').open() as img:

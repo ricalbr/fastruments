@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Wed Nov 12 19:50:19 2025
-
-@author: Francesco Ceccarelli
+TEKTRONIX TBS2000
 
 This module provides a high-level Python interface for controlling Tektronix
 TBS2000 series digital oscilloscopes via USB connection using the PyVISA
@@ -18,8 +14,8 @@ Python control of oscilloscopes is required, e.g. in integrated photonics
 and optoelectronic experiments.
 """
 
-import pyvisa
 import numpy as np
+import pyvisa
 
 
 class TBS2204B:
@@ -70,22 +66,42 @@ class TBS2204B:
     [TBS2204B] Connection closed.
     """
 
-
     __NUM_CHANNELS = 4
 
     __TIMEBASE_SCALES = {
-        2e-9, 5e-9,
-        10e-9, 20e-9, 50e-9,
-        100e-9, 200e-9, 500e-9,
-        1e-6, 2e-6, 5e-6,
-        10e-6, 20e-6, 50e-6,
-        100e-6, 200e-6, 500e-6,
-        1e-3, 2e-3, 5e-3,
-        10e-3, 20e-3, 50e-3,
-        0.1, 0.2, 0.5,
-        1, 2, 5,
-        10, 20, 50,
-        100
+        2e-9,
+        5e-9,
+        10e-9,
+        20e-9,
+        50e-9,
+        100e-9,
+        200e-9,
+        500e-9,
+        1e-6,
+        2e-6,
+        5e-6,
+        10e-6,
+        20e-6,
+        50e-6,
+        100e-6,
+        200e-6,
+        500e-6,
+        1e-3,
+        2e-3,
+        5e-3,
+        10e-3,
+        20e-3,
+        50e-3,
+        0.1,
+        0.2,
+        0.5,
+        1,
+        2,
+        5,
+        10,
+        20,
+        50,
+        100,
     }
 
     __COUPLING_MODES = {"AC", "DC", "GND"}
@@ -95,29 +111,52 @@ class TBS2204B:
     __TRIGGER_SLOPES = {"RISE", "FALL"}
 
     __RECORD_LENGTHS = {1_000, 2_000, 20_000, 200_000, 2_000_000, 5_000_000}
-   
+
     __VERTICAL_GAINS = {
-        0.001, 0.002, 0.005,
-        0.01,  0.02,  0.05,
-        0.1,   0.2,   0.5,
-        1,     2,     5,
-        10,    20,    50,
-        100,   200,   500,
-        1000
+        0.001,
+        0.002,
+        0.005,
+        0.01,
+        0.02,
+        0.05,
+        0.1,
+        0.2,
+        0.5,
+        1,
+        2,
+        5,
+        10,
+        20,
+        50,
+        100,
+        200,
+        500,
+        1000,
     }
-    
+
     __VERTICAL_POSITION_RANGE = (-5.0, 5.0)
 
-    __VERTICAL_SCALES = {     # This is valid only for gain = 1, otherwise it scales accordingly. 
-        2e-3, 5e-3,
-        1e-2, 2e-2, 5e-2,
-        1e-1, 2e-1, 5e-1,
-        1.0, 2.0, 5.0
-    }
-    
+    __VERTICAL_SCALES = (
+        {  # This is valid only for gain = 1, otherwise it scales accordingly.
+            2e-3,
+            5e-3,
+            1e-2,
+            2e-2,
+            5e-2,
+            1e-1,
+            2e-1,
+            5e-1,
+            1.0,
+            2.0,
+            5.0,
+        }
+    )
+
     __BANDWIDTHS = {20_000_000, 200_000_000}
 
-    def __init__(self, resource: str, timeout: int = 20000, verbose: bool = True) -> None:
+    def __init__(
+        self, resource: str, timeout: int = 20000, verbose: bool = True
+    ) -> None:
         """
         Initialize connection to the Tektronix TBS2204B oscilloscope.
 
@@ -135,14 +174,16 @@ class TBS2204B:
             self.inst = rm.open_resource(resource)
             self.inst.timeout = timeout
         except Exception as e:
-            raise ConnectionError(f"[TBS2204B][ERROR] Could not connect to oscilloscope: {e}")
+            raise ConnectionError(
+                f"[TBS2204B][ERROR] Could not connect to oscilloscope: {e}"
+            )
         try:
             self.idn()
             if self.verbose:
                 print("[TBS2204B] Connected successfully.")
         except Exception as e:
             raise RuntimeError(f"[TBS2204B][ERROR] Failed to query IDN: {e}")
-            
+
     # ------------------------------------------------------------------
     # General communication and status
     # ------------------------------------------------------------------
@@ -203,7 +244,7 @@ class TBS2204B:
                 print("[TBS2204B] Connection closed.")
         except Exception as e:
             raise RuntimeError(f"[TBS2204B][ERROR] Failed to close connection: {e}")
-    
+
     # ------------------------------------------------------------------
     # Channel control
     # ------------------------------------------------------------------
@@ -224,7 +265,9 @@ class TBS2204B:
             If the channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         self.inst.write(f":SEL:CH{channel} {'ON' if state else 'OFF'}")
         if self.verbose:
             print(f"[TBS2204B] CH{channel} display set to {'ON' if state else 'OFF'}.")
@@ -240,24 +283,24 @@ class TBS2204B:
         scale : float
             Vertical scale (V/div). The valid values depend on the channel gain.
             See Notes.
-    
+
         Notes
         -----
         The valid vertical scales are not absolute. The oscilloscope enforces
         discrete scale values defined in `__VERTICAL_SCALES` *after* the
         channel gain is applied.
-    
+
         A scale value is valid only if:
-            
+
             scale * gain ∈ __VERTICAL_SCALES
-        
+
         where the gain is obtained from `get_channel_gain(channel)`.
-    
-        Therefore:    
+
+        Therefore:
             - changing the channel gain modifies the valid scale values
             - setting the scale may fail if the gain was changed beforehand
             - recommended workflow: **set gain first, then set scale**.
-    
+
         Raises
         ------
         ValueError
@@ -265,7 +308,9 @@ class TBS2204B:
             If the requested vertical scale is not valid for the channel’s current gain.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         gain = self.get_channel_gain(channel)
         if scale * gain not in self.__VERTICAL_SCALES:
             raise ValueError(
@@ -295,7 +340,9 @@ class TBS2204B:
             If the coupling mode is not supported.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         mode = mode.upper()
         if mode not in self.__COUPLING_MODES:
             raise ValueError(
@@ -317,8 +364,8 @@ class TBS2204B:
         position : float
             Vertical position in divisions. Valid range (min, max) is defined in
             `__VERTICAL_POSITION_RANGE`. Choose negative values for strictly
-            positive signals and vice versa. 
-        
+            positive signals and vice versa.
+
         Raises
         ------
         ValueError
@@ -326,13 +373,15 @@ class TBS2204B:
             If the vertical position is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         low, high = self.__VERTICAL_POSITION_RANGE
         if not (low <= position <= high):
             raise ValueError(
                 f"[TBS2204B][ERROR] Invalid CH{channel} position {position}. "
                 f"Valid range: [{low}, {high}] div."
-        )
+            )
         self.inst.write(f":CH{channel}:POS {position}")
         if self.verbose:
             print(f"[TBS2204B] CH{channel} vertical position set to {position} div.")
@@ -340,7 +389,7 @@ class TBS2204B:
     def set_channel_gain(self, channel: int, gain: float) -> None:
         """
         Set the vertical gain for a specific channel.
-    
+
         Parameters
         ----------
         channel : int
@@ -348,11 +397,11 @@ class TBS2204B:
         gain : float
             Vertical gain multiplier (e.g. 10x must be set as 0.1). Valid
             values are those listed in `__VERTICAL_GAINS`.
-        
+
         Notes
         ----------
             This method will affect also the channel vertical scale.
-    
+
         Raises
         ------
         ValueError
@@ -360,22 +409,24 @@ class TBS2204B:
             If the gain value is not one of the supported values.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
-    
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
+
         if gain not in self.__VERTICAL_GAINS:
             raise ValueError(
                 f"[TBS2204B][ERROR] Invalid gain {gain}. "
                 f"Valid values: {sorted(self.__VERTICAL_GAINS)}."
-          )
-    
+            )
+
         self.inst.write(f":CH{channel}:PRO:GAIN {gain}")
         if self.verbose:
             print(f"[TBS2204B] CH{channel} gain set to {gain}.")
-            
+
     def set_channel_bandwidth(self, channel: int, bandwidth: float) -> None:
         """
         Set the analog bandwidth limit for a channel.
-    
+
         Parameters
         ----------
         channel : int
@@ -383,7 +434,7 @@ class TBS2204B:
         bandwidth : float
             Bandwidth limit in Hz. Valid values are those listed in
             `__CHANNEL_BANDWIDTHS`.
-    
+
         Raises
         ------
         ValueError
@@ -391,8 +442,10 @@ class TBS2204B:
             If the bandwidth value is not supported.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
-    
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
+
         if bandwidth not in self.__BANDWIDTHS:
             raise ValueError(
                 f"[TBS2204B][ERROR] Invalid bandwidth {bandwidth}. "
@@ -401,7 +454,7 @@ class TBS2204B:
         self.inst.write(f":CH{channel}:BAN {bandwidth}")
         if self.verbose:
             print(f"[TBS2204B] CH{channel} bandwidth set to {bandwidth/1e6} MHz.")
-            
+
     def get_channel_position(self, channel: int) -> float:
         """
         Get vertical position of a channel.
@@ -422,12 +475,14 @@ class TBS2204B:
             If the channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         pos = float(self.inst.query(f":CH{channel}:POS?"))
         if self.verbose:
             print(f"[TBS2204B] CH{channel} vertical position is {pos} div.")
         return pos
-    
+
     def get_channel_display(self, channel: int) -> bool:
         """
         Get display status of a channel.
@@ -441,17 +496,21 @@ class TBS2204B:
         -------
         bool
             ``True`` if channel display is enabled, ``False`` otherwise.
-        
+
         Raises
         ------
         ValueError
             If the channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         state = self.inst.query(f":SEL:CH{channel}?").strip()
         if self.verbose:
-            print(f"[TBS2204B] CH{channel} display is {'ON' if state == '1' else 'OFF'}.")
+            print(
+                f"[TBS2204B] CH{channel} display is {'ON' if state == '1' else 'OFF'}."
+            )
         return state == "1"
 
     def get_channel_scale(self, channel: int) -> float:
@@ -467,7 +526,7 @@ class TBS2204B:
         -------
         float
             Vertical scale in V/div.
-        
+
         Raises
         ------
         ValueError
@@ -493,7 +552,7 @@ class TBS2204B:
         -------
         str
             Coupling mode as in `__COUPLING_MODES`.
-        
+
         Raises
         ------
         ValueError
@@ -526,33 +585,37 @@ class TBS2204B:
             If the channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         gain = float(self.inst.query(f":CH{channel}:PRO:GAIN?"))
         if self.verbose:
             print(f"[TBS2204B] CH{channel} gain is {gain}.")
         return gain
-    
+
     def get_channel_bandwidth(self, channel: int) -> float:
         """
         Get the analog bandwidth limit for a channel.
-    
+
         Parameters
         ----------
         channel : int
             Channel number. Valid values are between 1 and `__MAX_CHANNELS`.
-    
+
         Returns
         -------
         float
             Bandwidth in hertz.
-    
+
         Raises
         ------
         ValueError
             If the channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         bandwidth = float(self.inst.query(f":CH{channel}:BAN?"))
         if self.verbose:
             print(f"[TBS2204B] CH{channel} bandwidth is {bandwidth/1e6} MHz.")
@@ -564,7 +627,7 @@ class TBS2204B:
     def set_timebase_scale(self, scale: float) -> None:
         """
         Set horizontal timebase scale.
-        
+
         Parameters
         ----------
         scale : float
@@ -573,13 +636,13 @@ class TBS2204B:
 
         Notes
         -----
-        Changing the timebase affects the waveform returned by `get_waveform()` 
-        only if the oscilloscope adjusts its sampling rate accordingly. When the 
-        horizontal scale is within a range where the instrument remains at its 
-        maximum sampling rate (1 GSa/s), the sample interval (``XINCR``) does not 
-        change. As a consequence, the downloaded waveform may look identical even 
+        Changing the timebase affects the waveform returned by `get_waveform()`
+        only if the oscilloscope adjusts its sampling rate accordingly. When the
+        horizontal scale is within a range where the instrument remains at its
+        maximum sampling rate (1 GSa/s), the sample interval (``XINCR``) does not
+        change. As a consequence, the downloaded waveform may look identical even
         if different timebase settings were applied.
-                  
+
         Raises
         ------
         ValueError
@@ -597,20 +660,24 @@ class TBS2204B:
     def set_timebase_position(self, position: float) -> None:
         """
         Set the horizontal timebase position.
-    
+
         Parameters
         ----------
         position : float
             Horizontal timebase offset as percentage (0 to 100).
-    
+
         Raises
         ------
         ValueError
             If the timebase position is outside the valid range.
         """
         if not (0 <= position <= 100):
-            raise ValueError("[TBS2204B][ERROR] Timebase position must be between 0 and 100%.")
-        self.inst.write(":HOR:DEL:MOD OFF")         # Changing the position does not work when a delay is applied
+            raise ValueError(
+                "[TBS2204B][ERROR] Timebase position must be between 0 and 100%."
+            )
+        self.inst.write(
+            ":HOR:DEL:MOD OFF"
+        )  # Changing the position does not work when a delay is applied
         self.inst.write(f":HOR:POS {position}")
         if self.verbose:
             print(f"[TBS2204B] Timebase position set to {position}%.")
@@ -618,12 +685,12 @@ class TBS2204B:
     def get_timebase_scale(self) -> float:
         """
         Get horizontal timebase scale.
-    
+
         Returns
         -------
         float
             Time scale per division in s/div.
-        
+
         """
         scale = float(self.inst.query(":HOR:SCA?"))
         if self.verbose:
@@ -633,7 +700,7 @@ class TBS2204B:
     def get_timebase_position(self) -> float:
         """
         Get the horizontal timebase position.
-    
+
         Returns
         -------
         float
@@ -643,7 +710,7 @@ class TBS2204B:
         if self.verbose:
             print(f"[TBS2204B] Timebase position is {pos}%.")
         return pos
-    
+
     # ------------------------------------------------------------------
     # Trigger settings
     # ------------------------------------------------------------------
@@ -667,7 +734,7 @@ class TBS2204B:
             raise ValueError(
                 f"[TBS2204B][ERROR] Invalid trigger mode '{mode}'. "
                 f"Valid options: {sorted(self.__TRIGGER_MODES)}."
-                )
+            )
         self.inst.write(f":TRIG:A:MOD {mode}")
         if self.verbose:
             print(f"[TBS2204B] Trigger mode set to {mode}.")
@@ -687,7 +754,9 @@ class TBS2204B:
             If the trigger source channel number is outside the valid range.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid source channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid source channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         self.inst.write(f":TRIG:A:EDGE:SOU CH{channel}")
         if self.verbose:
             print(f"[TBS2204B] Trigger source set to CH{channel}.")
@@ -712,12 +781,12 @@ class TBS2204B:
             `get_channel_scale()`
             - the vertical position (divisions) of that channel is obtained from
             `get_channel_position()`
-    
+
         The oscilloscope internally limits the trigger point to a maximum vertical
         span of ±4.96 divisions from the center. Therefore, the valid level range is:
 
             [(−4.96 − position) * scale,  (4.96 − position) * scale]
-    
+
         Any change in channel scale or vertical position modifies the admissible
         trigger level range. It is therefore recommended to re-validate the trigger
         level after adjusting vertical settings.
@@ -744,13 +813,13 @@ class TBS2204B:
     def set_trigger_slope(self, slope: str) -> None:
         """
         Set the trigger slope mode.
-        
+
         Parameters
         ----------
         slope : str
             Trigger slope mode. Valid values are those listed in
             `__TRIGGER_SLOPES`.
-        
+
         Raises
         ------
         ValueError
@@ -801,7 +870,7 @@ class TBS2204B:
     def get_trigger_level(self) -> float:
         """
         Get trigger voltage level.
-    
+
         Returns
         -------
         float
@@ -825,7 +894,7 @@ class TBS2204B:
         if self.verbose:
             print(f"[TBS2204B] Trigger slope is {slope}.")
         return slope
-    
+
     # ------------------------------------------------------------------
     # Waveform acquisition
     # ------------------------------------------------------------------
@@ -833,12 +902,12 @@ class TBS2204B:
         """
         Acquire waveform data from a specified channel and return both the
         time axis and the waveform.
-    
+
         Parameters
         ----------
         channel : int
             Channel number. Valid values are between 1 and `__MAX_CHANNELS`.
-    
+
         Returns
         -------
         x : numpy.ndarray
@@ -853,28 +922,32 @@ class TBS2204B:
             If the channel display is OFF when attempting to acquire a waveform.
         """
         if not (1 <= channel <= self.__NUM_CHANNELS):
-            raise ValueError(f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}.")
+            raise ValueError(
+                f"[TBS2204B][ERROR] Invalid channel {channel}. Must be between 1 and {self.__NUM_CHANNELS}."
+            )
         if not self.get_channel_display(channel):
             raise ValueError(
                 f"[TBS2204B][ERROR] CH{channel} is OFF. "
                 "Enable it with set_channel_display(channel, True) before acquiring waveforms."
             )
-        self.inst.write(":DAT:ENC ASCI")                            # Set data encoding to ASCII
-        self.inst.write(f":DAT:SOU CH{channel}")                    # Set channel
-        self.inst.write(":DAT:STAR 1")                              # Get entire record (left)
-        self.inst.write(f":DAT:STOP {np.max(self.__RECORD_LENGTHS)}") # Get entire record (right)
+        self.inst.write(":DAT:ENC ASCI")  # Set data encoding to ASCII
+        self.inst.write(f":DAT:SOU CH{channel}")  # Set channel
+        self.inst.write(":DAT:STAR 1")  # Get entire record (left)
+        self.inst.write(
+            f":DAT:STOP {np.max(self.__RECORD_LENGTHS)}"
+        )  # Get entire record (right)
         if self.verbose:
             print(f"[TBS2204B] Donwloading data points from CH{channel}...")
-        raw_data = self.inst.query(":CURV?")                        # Get raw data
+        raw_data = self.inst.query(":CURV?")  # Get raw data
         raw = np.fromstring(raw_data, sep=",")
-        ymult = float(self.inst.query(":WFMO:YMULT?"))              # Get Y parameters
-        yoff  = float(self.inst.query(":WFMO:YOFF?"))
+        ymult = float(self.inst.query(":WFMO:YMULT?"))  # Get Y parameters
+        yoff = float(self.inst.query(":WFMO:YOFF?"))
         yzero = float(self.inst.query(":WFMO:YZERO?"))
-        y = (raw - yoff) * ymult + yzero                            # Convert to voltage
-        xincr = float(self.inst.query(":WFMO:XINCR?"))              # Get X parameters
+        y = (raw - yoff) * ymult + yzero  # Convert to voltage
+        xincr = float(self.inst.query(":WFMO:XINCR?"))  # Get X parameters
         xzero = float(self.inst.query(":WFMO:XZERO?"))
-        xref  = float(self.inst.query(":WFMO:PT_OFF?"))
-        n = len(raw)                                                # Convert to time
+        xref = float(self.inst.query(":WFMO:PT_OFF?"))
+        n = len(raw)  # Convert to time
         x = (np.arange(n) - xref) * xincr + xzero
         if self.verbose:
             print(f"[TBS2204B] {n} points downloaded from CH{channel}.")
@@ -902,7 +975,7 @@ class TBS2204B:
         -----
         After completing the acquisition the oscilloscope stops automatically.
         This is the method of choice for acquiring data from a PC. Remember
-        that once you have changed the measurement parameters it is always a 
+        that once you have changed the measurement parameters it is always a
         good idea to acquire again the sequence.
         """
         self.inst.write(":ACQ:STOPA SEQ")
@@ -932,19 +1005,21 @@ class TBS2204B:
         """
         state = self.inst.query(":ACQ:STATE?").strip()
         if self.verbose:
-            print(f"[TBS2204B] Acquisition state: {'RUNNING' if state == '1' else 'STOPPED'}.")
+            print(
+                f"[TBS2204B] Acquisition state: {'RUNNING' if state == '1' else 'STOPPED'}."
+            )
         return state == "1"
 
     def set_record_length(self, length: int) -> None:
         """
         Set the acquisition record length.
-    
+
         Parameters
         ----------
         length : int
             Record length in points. Valid values are those listed in
             `__RECORD_LENGTHS`.
-    
+
         Raises
         ------
         ValueError
@@ -972,3 +1047,61 @@ class TBS2204B:
         if self.verbose:
             print(f"[TBS2204B] Record length is {length} points.")
         return length
+
+if __name__ == "__main__":
+
+    import matplotlib.pyplot as plt
+
+    scope = TBS2204B("USB::0x0699::0x03C7::C010302::INSTR", verbose=True)
+
+    # General communication and status
+    scope.idn()
+    scope.clear()
+    scope.reset()
+    scope.autoset()
+
+    # Channel control
+    scope.set_channel_display(2, True)
+    scope.get_channel_display(2)
+    scope.set_channel_coupling(2, "DC")
+    scope.get_channel_coupling(2)
+    scope.set_channel_position(2, 0)
+    scope.get_channel_position(2)
+    scope.set_channel_gain(2, 1)
+    scope.get_channel_gain(2)
+    scope.set_channel_bandwidth(2, 20e6)
+    scope.get_channel_bandwidth(2)
+    scope.set_channel_scale(2, 1)
+    scope.get_channel_scale(2)
+
+    # Timebase configuration
+    scope.set_timebase_position(7.5)
+    scope.get_timebase_position()
+    scope.set_timebase_scale(0.001)
+    scope.get_timebase_scale()
+
+    # Trigger settings
+    scope.set_trigger_mode("AUTO")
+    scope.get_trigger_mode()
+    scope.set_trigger_slope("FALL")
+    scope.get_trigger_slope()
+    scope.set_trigger_source(2)
+    scope.get_trigger_source()
+    scope.set_trigger_level(1.5)
+    scope.get_trigger_level()
+
+    # Waveform acquisition
+    scope.set_record_length(2e3)
+    scope.get_record_length()
+    scope.get_acquisition_state()
+    scope.stop_acquisition()
+    scope.get_acquisition_state()
+    scope.start_acquisition()
+    scope.get_acquisition_state()
+    scope.single_acquisition()
+    scope.get_acquisition_state()
+    t, v = scope.get_waveform(2)
+    plt.plot(t, v)
+    plt.show()
+
+    scope.close()

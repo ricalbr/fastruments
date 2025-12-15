@@ -2,6 +2,7 @@
 # be used as a camera has to implement.
 
 from abc import ABC, abstractmethod
+
 # ABC means Abstract Base Class and is basically an interface
 
 
@@ -26,5 +27,4 @@ class Camera(ABC):
         """
 
     def get_id(self):
-        return ("Camera")
-
+        return "Camera"

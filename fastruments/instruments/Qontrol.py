@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Wed Nov 12 14:43:59 2025
-
-@author: Francesco Ceccarelli
+QONTROL BOARDS
 
 High-level Python interface for Qontrol Q8iv current/voltage controller boards.
 
@@ -17,6 +13,7 @@ This module provides a safe, documented wrapper around the low-level
 
 import time
 from typing import List, Optional, Sequence, Union
+
 import numpy as np
 import qontrol
 
@@ -45,7 +42,7 @@ class Q8iv:
         Settling wait time after write operations (default: ``0.5``).
     verbose : bool, optional
         If ``True``, prints instrument messages (default: ``True``).
-        
+
     Attributes
     ----------
     _q : qontrol.QXOutput
@@ -88,7 +85,15 @@ class Q8iv:
     __IMAX_DEFAULT: float = 24.0  # mA
     __VMAX_DEFAULT: float = 12.0  # V
 
-    def __init__(self, resource: str, init_mode: str = "i", imax: float = __IMAX_DEFAULT, vmax: float = __VMAX_DEFAULT, transient: float = 0.5, verbose: bool = True) -> None:
+    def __init__(
+        self,
+        resource: str,
+        init_mode: str = "i",
+        imax: float = __IMAX_DEFAULT,
+        vmax: float = __VMAX_DEFAULT,
+        transient: float = 0.5,
+        verbose: bool = True,
+    ) -> None:
         """
         Initialise the Q8iv wrapper and connect to the Qontrol board.
 
@@ -116,10 +121,14 @@ class Q8iv:
         # Validate init mode
         mode = init_mode.lower()
         if mode not in ("i", "v"):
-            raise ValueError(f"[Q8iv][ERROR] Invalid init_mode '{init_mode}'. Use 'i' or 'v'.")
+            raise ValueError(
+                f"[Q8iv][ERROR] Invalid init_mode '{init_mode}'. Use 'i' or 'v'."
+            )
         self._init_mode = mode
         # Validate compliance
-        if not (0 < imax <= self.__IMAX_DEFAULT) or not (0 < vmax <= self.__VMAX_DEFAULT):
+        if not (0 < imax <= self.__IMAX_DEFAULT) or not (
+            0 < vmax <= self.__VMAX_DEFAULT
+        ):
             raise ValueError(
                 f"[Q8iv][ERROR] Compliance out of bounds: "
                 f"imax<={self.__IMAX_DEFAULT}, vmax<={self.__VMAX_DEFAULT}."
@@ -129,8 +138,10 @@ class Q8iv:
         self.vmax = vmax
         self.transient = transient
         if self.verbose:
-            print(f"[Q8iv] Initialised Qontrol in {self._init_mode!r} mode with "
-                  f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V.")
+            print(
+                f"[Q8iv] Initialised Qontrol in {self._init_mode!r} mode with "
+                f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
+            )
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -152,7 +163,9 @@ class Q8iv:
                 f"Valid range: 0 to {self.__num_channels - 1}."
             )
 
-    def __validate_chans_vals(self, chans: Sequence[int], vals: Sequence[float]) -> None:
+    def __validate_chans_vals(
+        self, chans: Sequence[int], vals: Sequence[float]
+    ) -> None:
         """
         Validate channels and values length and indices.
         """
@@ -210,25 +223,31 @@ class Q8iv:
     # ------------------------------------------------------------------
     # Core I/V operations
     # ------------------------------------------------------------------
-    def set_current(self, channel: Union[int, Sequence[int]], current: Union[float, Sequence[float]]) -> None:
+    def set_current(
+        self, channel: Union[int, Sequence[int]], current: Union[float, Sequence[float]]
+    ) -> None:
         """
         Set output current for one or more channels (mA).
-        
+
         Raises
         ------
         ValueError
             If not in current mode, or invalid channel/value input.
         """
         if self._init_mode != "i":
-            raise ValueError("[Q8iv][ERROR] Attempted to set current while in voltage mode.")
+            raise ValueError(
+                "[Q8iv][ERROR] Attempted to set current while in voltage mode."
+            )
         chans = [int(c) for c in self.__to_list(channel)]
         currents = [float(v) for v in self.__to_list(current)]
         self.__validate_chans_vals(chans, currents)
         for ch, cur in zip(chans, currents):
             if cur > self.imax or cur < 0:
                 if self.verbose:
-                    print(f"[Q8iv] Out-of-range current on channel {ch} "
-                          f"(requested {cur} mA) — clamped to 0 mA.")
+                    print(
+                        f"[Q8iv] Out-of-range current on channel {ch} "
+                        f"(requested {cur} mA) — clamped to 0 mA."
+                    )
                 cur = 0.0
             self._q.i[ch] = cur
             if self.verbose:
@@ -244,25 +263,31 @@ class Q8iv:
             self.__validate_channel(ch)
         return [float(self._q.i[ch]) for ch in chans]
 
-    def set_voltage(self, channel: Union[int, Sequence[int]], voltage: Union[float, Sequence[float]]) -> None:
+    def set_voltage(
+        self, channel: Union[int, Sequence[int]], voltage: Union[float, Sequence[float]]
+    ) -> None:
         """
         Set output voltage for one or more channels (V).
-        
+
         Raises
         ------
         ValueError
             If not in voltage mode, or invalid channel/value input.
         """
         if self._init_mode != "v":
-            raise ValueError("[Q8iv][ERROR] Attempted to set voltage while in current mode.")
+            raise ValueError(
+                "[Q8iv][ERROR] Attempted to set voltage while in current mode."
+            )
         chans = [int(c) for c in self.__to_list(channel)]
         volts = [float(v) for v in self.__to_list(voltage)]
         self.__validate_chans_vals(chans, volts)
         for ch, v in zip(chans, volts):
             if v > self.vmax or v < 0:
                 if self.verbose:
-                    print(f"[Q8iv] Out-of-range voltage on channel {ch} "
-                          f"(requested {v} V) — clamped to 0 V.")
+                    print(
+                        f"[Q8iv] Out-of-range voltage on channel {ch} "
+                        f"(requested {v} V) — clamped to 0 V."
+                    )
                 v = 0.0
             self._q.v[ch] = v
             if self.verbose:
@@ -281,16 +306,20 @@ class Q8iv:
     # ------------------------------------------------------------------
     # Utility operations
     # ------------------------------------------------------------------
-    def set_compliance(self, current: float = __IMAX_DEFAULT, voltage: float = __VMAX_DEFAULT) -> None:
+    def set_compliance(
+        self, current: float = __IMAX_DEFAULT, voltage: float = __VMAX_DEFAULT
+    ) -> None:
         """
         Set current and voltage compliance limits.
-        
+
         Raises
         ------
         ValueError
             If compliance exceeds hardware defaults.
         """
-        if not (0 < current <= self.__IMAX_DEFAULT) or not (0 < voltage <= self.__VMAX_DEFAULT):
+        if not (0 < current <= self.__IMAX_DEFAULT) or not (
+            0 < voltage <= self.__VMAX_DEFAULT
+        ):
             raise ValueError(
                 f"[Q8iv][ERROR] Compliance out of bounds: "
                 f"imax<={self.__IMAX_DEFAULT}, vmax<={self.__VMAX_DEFAULT}."
@@ -303,7 +332,9 @@ class Q8iv:
         self.imax = float(current)
         self.vmax = float(voltage)
         if self.verbose:
-            print(f"[Q8iv] Compliance updated: imax={self.imax} mA, vmax={self.vmax} V.")
+            print(
+                f"[Q8iv] Compliance updated: imax={self.imax} mA, vmax={self.vmax} V."
+            )
 
     def set_all_zero(self) -> None:
         """
@@ -328,7 +359,7 @@ class Q8iv:
     def close(self) -> None:
         """
         Close communication and safely turn off all channels.
-        
+
         Notes
         -----
         Before closing, all outputs are automatically set to zero.
@@ -349,3 +380,22 @@ class Q8iv:
                     print("[Q8iv] Communication already closed.")
         except Exception as e:
             raise RuntimeError(f"[Q8iv][ERROR] Error during close(): {e}.")
+
+
+if __name__ == "__main__":
+
+    drv = Q8iv("COM3", init_mode="i", transient=0.2, verbose=True)
+
+    # General compliance and status
+    drv.set_compliance(current=24.0, voltage=12.0)
+
+    # Core I/V operations
+    drv.set_current(0, 5.0)
+    drv.set_current([1, 2], [3.0, 7.5])
+    drv.get_current([0, 1, 2])
+    drv.get_voltage([0, 1, 2])
+    drv.set_all_zero()
+    drv.get_current([0, 1, 2])
+    drv.get_voltage([0, 1, 2])
+
+    drv.close()

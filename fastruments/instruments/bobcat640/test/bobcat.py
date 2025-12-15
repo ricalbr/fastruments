@@ -13,248 +13,276 @@ import numpy as np
 CLKFREQ = 80e6
 
 # ErrorCodes
-I_OK                = 0        # Success.
-I_DIRTY             = 1        # Internal.
-E_BUG               = 10000    # Generic.
-E_NOINIT            = 10001    # Camera was not successfully initialised.
-E_LOGICLOADFAILED   = 10002    # Invalid logic file.
-E_INTERFACE_ERROR   = 10003    # Command interface failure.
-E_OUT_OF_RANGE      = 10004    # Provided value is incapable of being produced by the hardware.
-E_NOT_SUPPORTED     = 10005    # Functionality not supported by this camera.
-E_NOT_FOUND         = 10006    # File/Data not found.
-E_FILTER_DONE       = 10007    # Filter has finished processing and will be removed.
-E_NO_FRAME          = 10008    # A frame was requested by calling GetFrame but none was available.
-E_SAVE_ERROR        = 10009    # Couldn't save to file.
-E_MISMATCHED        = 10010    # Buffer size mismatch.
-E_BUSY              = 10011    # The API can not read a temperature because the camera is busy.
-E_INVALID_HANDLE    = 10012    # An unknown handle was passed to the C API.
-E_TIMEOUT           = 10013    # Operation timed out.
-E_FRAMEGRABBER      = 10014    # Frame grabber error.
-E_NO_CONVERSION     = 10015    # GetFrame could not convert the image data to the requested format.
-E_FILTER_SKIP_FRAME = 10016    # Filter indicates the frame should be skipped.
-E_WRONG_VERSION     = 10017    # Version mismatch.
-E_PACKET_ERROR      = 10018    # The requested frame cannot be provided because at least one packet has been lost.
-E_WRONG_FORMAT      = 10019    # The emissivity map you tried to set should be a 16 bit greyscale PNG.
-E_WRONG_SIZE        = 10020    # The emissivity map you tried to set has the wrong dimensions (width height).
-E_CAPSTOP           = 10021    # Internal
-E_OUT_OF_MEMORY     = 10022    # An allocation failed because the system ran out of memory.
+I_OK = 0  # Success.
+I_DIRTY = 1  # Internal.
+E_BUG = 10000  # Generic.
+E_NOINIT = 10001  # Camera was not successfully initialised.
+E_LOGICLOADFAILED = 10002  # Invalid logic file.
+E_INTERFACE_ERROR = 10003  # Command interface failure.
+E_OUT_OF_RANGE = 10004  # Provided value is incapable of being produced by the hardware.
+E_NOT_SUPPORTED = 10005  # Functionality not supported by this camera.
+E_NOT_FOUND = 10006  # File/Data not found.
+E_FILTER_DONE = 10007  # Filter has finished processing and will be removed.
+E_NO_FRAME = 10008  # A frame was requested by calling GetFrame but none was available.
+E_SAVE_ERROR = 10009  # Couldn't save to file.
+E_MISMATCHED = 10010  # Buffer size mismatch.
+E_BUSY = 10011  # The API can not read a temperature because the camera is busy.
+E_INVALID_HANDLE = 10012  # An unknown handle was passed to the C API.
+E_TIMEOUT = 10013  # Operation timed out.
+E_FRAMEGRABBER = 10014  # Frame grabber error.
+E_NO_CONVERSION = (
+    10015  # GetFrame could not convert the image data to the requested format.
+)
+E_FILTER_SKIP_FRAME = 10016  # Filter indicates the frame should be skipped.
+E_WRONG_VERSION = 10017  # Version mismatch.
+E_PACKET_ERROR = 10018  # The requested frame cannot be provided because at least one packet has been lost.
+E_WRONG_FORMAT = (
+    10019  # The emissivity map you tried to set should be a 16 bit greyscale PNG.
+)
+E_WRONG_SIZE = 10020  # The emissivity map you tried to set has the wrong dimensions (width height).
+E_CAPSTOP = 10021  # Internal
+E_OUT_OF_MEMORY = 10022  # An allocation failed because the system ran out of memory.
 
-#ColourMode
-COLOURMODE_8        = 0    # Intensity only
-COLOURMODE_16       = 1    # Alias
-COLOURMODE_PROFILE  = 2    # Uses a colour profile bitmap. See #LoadColourProfile()
-COLOURMODE_INVERT   = 256   # Set this flag if an inversion of the colour profile is desired. eg: #ColourMode_8 | #ColourMode_Invert
+# ColourMode
+COLOURMODE_8 = 0  # Intensity only
+COLOURMODE_16 = 1  # Alias
+COLOURMODE_PROFILE = 2  # Uses a colour profile bitmap. See #LoadColourProfile()
+COLOURMODE_INVERT = 256  # Set this flag if an inversion of the colour profile is desired. eg: #ColourMode_8 | #ColourMode_Invert
 
-#BlitType
-WINDOW              = 0    # Blit the contents of the last captured frame directly to a Windows client device context using a Window handle (HWND)
-DEVICECONTEXT       = 1    # Blit the contents of the last captured frame to a specified device context. This can be any device context (HDC) like a memory DC paint DC or a handle to a DC associated with a Graphics-object (C#)
+# BlitType
+WINDOW = 0  # Blit the contents of the last captured frame directly to a Windows client device context using a Window handle (HWND)
+DEVICECONTEXT = 1  # Blit the contents of the last captured frame to a specified device context. This can be any device context (HDC) like a memory DC paint DC or a handle to a DC associated with a Graphics-object (C#)
 
-#FrameType
-FT_UNKNOWN          = -1   # Unknown invalid frame type
-FT_NATIVE           = 0    # The native frame type of this camera (can be FT_8..,FT_16..,FT32.. check GetFrameType())
-FT_8_BPP_GRAY       = 1    # 8-bit greyscale
-FT_16_BPP_GRAY      = 2    # 16-bit greyscale (default for most of the Xenics branded cameras)
-FT_32_BPP_GRAY      = 3    # 32-bit greyscale
-FT_32_BPP_RGBA      = 4    # 32-bit colour RGBA      [B,G,R,A] Available for output conversion.
-FT_32_BPP_RGB       = 5    # 32-bit colour RGB       [B,G,R]   Available for output conversion.
-FT_32_BPP_BGRA      = 6    # 32-bit colour BGRA      [R,G,B,A]
-FT_32_BPP_BGR       = 7    # 32-bit colour BGR       [R,G,B]
+# FrameType
+FT_UNKNOWN = -1  # Unknown invalid frame type
+FT_NATIVE = 0  # The native frame type of this camera (can be FT_8..,FT_16..,FT32.. check GetFrameType())
+FT_8_BPP_GRAY = 1  # 8-bit greyscale
+FT_16_BPP_GRAY = 2  # 16-bit greyscale (default for most of the Xenics branded cameras)
+FT_32_BPP_GRAY = 3  # 32-bit greyscale
+FT_32_BPP_RGBA = 4  # 32-bit colour RGBA      [B,G,R,A] Available for output conversion.
+FT_32_BPP_RGB = 5  # 32-bit colour RGB       [B,G,R]   Available for output conversion.
+FT_32_BPP_BGRA = 6  # 32-bit colour BGRA      [R,G,B,A]
+FT_32_BPP_BGR = 7  # 32-bit colour BGR       [R,G,B]
 
-#XEnumerationFlag
-XEF_NETWORK         = 0x00000001   # Network
-XEF_SERIAL          = 0x00000002   # Serial
-XEF_CAMERALINK      = 0x00000004   # CameraLink
-XEF_GIGEVISION      = 0x00000008   # GigEVision
-XEF_COAXPRESS       = 0x00000010   # CoaXPress
-XEF_USB             = 0x00000020   # USB
-XEF_USB3VISION      = 0x00000040   # USB3Vision
-XEF_GENCP           = 0x00000080   # CameraLink GenCP
-XEF_ENABLEALL       = 0x0000FFFF   # Enable all protocols.
-XEF_USECACHED       = 0x01000000   # Use cached devices on enumeration.
-XEF_RELEASECACHE    = 0x02000000   # Release internally cached devices.
+# XEnumerationFlag
+XEF_NETWORK = 0x00000001  # Network
+XEF_SERIAL = 0x00000002  # Serial
+XEF_CAMERALINK = 0x00000004  # CameraLink
+XEF_GIGEVISION = 0x00000008  # GigEVision
+XEF_COAXPRESS = 0x00000010  # CoaXPress
+XEF_USB = 0x00000020  # USB
+XEF_USB3VISION = 0x00000040  # USB3Vision
+XEF_GENCP = 0x00000080  # CameraLink GenCP
+XEF_ENABLEALL = 0x0000FFFF  # Enable all protocols.
+XEF_USECACHED = 0x01000000  # Use cached devices on enumeration.
+XEF_RELEASECACHE = 0x02000000  # Release internally cached devices.
 
-#XFilterMessage
-XMSGINIT                = 0    # [API->Filter Event] Called when the filter is being installed  ( (!) calling thread context)         */
-XMSGCLOSE               = 1    # [API->Filter Event] Called when the filter is being removed    ( (!) calling thread context)         */
-XMSGFRAME               = 2    # [API->Filter Event] Called after every frame grab              ( (!) grabbing thread context)        */
-XMSGGETNAME             = 3    # [App->Filter Event] Retrieve filter name: the filter should copy a friendly string to msgparm        */
-XMSGGETVALUE            = 4    # [Obsolete]                                                                                           */
-XMSGSAVE                = 5    # [Obsolete]                                                                                           */
-XMSGGETSTATUS           = 6    # [API->Filter Event] Retrieves a general purpose status message from the image filter                 */
-XMSGUPDATEVIEWPORT      = 7    # [API->Filter Event] Instructs an image correction filter to update it's view port
-                               #                            This message is sent to a filter upon changing the window of interest or when
-                               #                            flipping image horizontally or vertically                                        */
-XMSGCANPROCEED          = 8    # Used by image filters in in interactive mode to indicate acceptable image conditions                 */
-XMSGGETINFO             = 9    # [Internal]          Used to query filter 'registers'                                                 */
-XMSGSELECT              = 10   # [Obsolete]                                                                                           */
-XMSGPROCESSEDFRAME      = 11   # [API->Filter Event] Sent after other filters have done their processing. Do not modify the frame data
-                               #                            in response to this event.                                                       */
-XMSGTIMEOUT             = 13   # [API->Filter Event] A camera time-out event was generated                                             */
-XMSGISBUSY              = 16   # [Thermography]      Is the temperature filter recalculating - Used to check if the thermal filter is
-                               #                            still updating it's linearisation tables                                         */
-XMSGSETTROI             = 17   # [Imaging/Thermo]    Set the adu/temperature span in percent (see #XMsgSetTROIParms)                 */
-XMSGLOAD                = 18   # [Obsolete]                                                                                           */
-XMSGUNLOAD              = 19   # [Obsolete]                                                                                           */
-XMSGADUTOTEMP           = 12   # [Thermography]      Convert an ADU value to a temperature (see #XFltADUToTemperature)                 */
-XMSGGETEN               = 14   # [Obsolete]          Get temperature correction parameters (see #XMsgGetRadiometricParms)              */
-XMSGSETEN               = 15   # [Obsolete]          Set temperature correction parameters (see #XMsgGetRadiometricParms)              */
-XMSGTEMPTOADU           = 20   # [Thermography]      Convert a temperature to an ADU value (see #XFltTemperatureToADU)                 */
-XMSGGETTVALUE           = 21   # [Thermography]      Retrieve an emissivity corrected value from a coordinate                         */
-XMSGGETRADIOMETRICPARMS = 22   # [Thermography]      Get temperature correction parameters (see #XMsgTempParms)                        */
-XMSGSETRADIOMETRICPARMS = 23   # [Thermography]      Set temperature correction parameters (see #XMsgTempParms)                        */
-XMSGSERIALISE           = 100  # [App->Filter event] Serialise internal parameter state (write xml structure) see #XFltSetParameter    */
-XMSGDESERIALISE         = 101  # [App->Filter event] Deserialise parameter state (read xml structure) see #XFltSetParameter            */
-XMSGGETPRIORITY         = 102  # [Filter Management] Write the current filter priority to the long * provided in v_pMsgParm           */
-XMSGSETFILTERSTATE      = 104  # [Filter Management] Enable or disable an image filter temporarily by sending 0/1 in v_pMsgParm       */
-XMSGISSERIALISEDIRTY    = 105  # [Internal]                                                                                           */
-XMSGSTOREHANDLE         = 106  # [Internal]          Start tracking the module handle for plugin image filters                        */
-XMSGUPDATETINT          = 107  # [API->Filter event] Integration time change notification                                             */
-XMSGLINADUTOTEMP        = 109  # [Thermography]      Convert a Linearized ADU value to a temperature (see #XFltADUToTemperatureLin)    */
-XMSGLINTEMPTOADU        = 110  # [Thermography]      Convert a temperature to a Linearized ADU value (see #XFltTemperatureToADULin)    */
-XMSGUPDATESPAN          = 111  # [API->Filter event] Span change notification                                                         */
-XMSGUPDATEPALETTE       = 112  # [API->Filter event] Colour profile change notification                                               */
-XMSGFILTERQUEUED        = 113  # [API->Filter event] A filter is queued                                                               */
-XMSGFILTERREMOVED       = 114  # [API->Filter event] A filter is removed                                                              */
-XMSGDRAWOVERLAY         = 200  # [API->Filter event] Draw the RGBA frame overlay, v_pMsgParm is the pointer to the RGBA data
-                               #                            structure                                                                        */
-XMSGLINEARISEOUTPUT     = 201  # [Thermography]      When specifying a v_pMsgParm that is non zero, starts linearising adu output     */
-XMSGSETEMIMAP           = 202  # [Thermography]      Streams the main emissivity map to the thermal filter (16 bit png, 65535 = 1.0)  */
-XMSGSETEMIMAPUSER       = 203  # [Thermography]      Stream a user emissivity map to the thermal filter (16 bit png, 65535 = 1.0,
-                                #                            0 values are replaced by the emissivity in the main map)                         */
-XMSGGETEMIMAP           = 204  # [Thermography]      Stream out the combined emissivity map                                           */
-XMSGCLREMIMAP           = 205  # [Thermography]      Clear emissivity map                                                             */
-XMSGCLREMIMAPUSER       = 206  # [Thermography]      Clear emissivity map (user)                                                      */
-XMSGPUSHRANGE           = 207  # [Thermography]      Push a new linearization range to the thermal filter                             */
-XMSGTHMFILTERSTATE      = 208  # [Thermography]      Filter event indicating thermal filter queue/removal                             */
-XMSGTHMADJUSTSET        = 209  # [Thermography]      Set global offset & gain adu adjustment (pre-thermal conversion)                 */
-XMSGTHMADJUSTGET        = 210  # [Thermography]      (see #XMsgTempAdjustmentParms)                                                      */
+# XFilterMessage
+XMSGINIT = 0  # [API->Filter Event] Called when the filter is being installed  ( (!) calling thread context)         */
+XMSGCLOSE = 1  # [API->Filter Event] Called when the filter is being removed    ( (!) calling thread context)         */
+XMSGFRAME = 2  # [API->Filter Event] Called after every frame grab              ( (!) grabbing thread context)        */
+XMSGGETNAME = 3  # [App->Filter Event] Retrieve filter name: the filter should copy a friendly string to msgparm        */
+XMSGGETVALUE = 4  # [Obsolete]                                                                                           */
+XMSGSAVE = 5  # [Obsolete]                                                                                           */
+XMSGGETSTATUS = 6  # [API->Filter Event] Retrieves a general purpose status message from the image filter                 */
+XMSGUPDATEVIEWPORT = 7  # [API->Filter Event] Instructs an image correction filter to update it's view port
+#                            This message is sent to a filter upon changing the window of interest or when
+#                            flipping image horizontally or vertically                                        */
+XMSGCANPROCEED = 8  # Used by image filters in in interactive mode to indicate acceptable image conditions                 */
+XMSGGETINFO = 9  # [Internal]          Used to query filter 'registers'                                                 */
+XMSGSELECT = 10  # [Obsolete]                                                                                           */
+XMSGPROCESSEDFRAME = 11  # [API->Filter Event] Sent after other filters have done their processing. Do not modify the frame data
+#                            in response to this event.                                                       */
+XMSGTIMEOUT = 13  # [API->Filter Event] A camera time-out event was generated                                             */
+XMSGISBUSY = 16  # [Thermography]      Is the temperature filter recalculating - Used to check if the thermal filter is
+#                            still updating it's linearisation tables                                         */
+XMSGSETTROI = 17  # [Imaging/Thermo]    Set the adu/temperature span in percent (see #XMsgSetTROIParms)                 */
+XMSGLOAD = 18  # [Obsolete]                                                                                           */
+XMSGUNLOAD = 19  # [Obsolete]                                                                                           */
+XMSGADUTOTEMP = 12  # [Thermography]      Convert an ADU value to a temperature (see #XFltADUToTemperature)                 */
+XMSGGETEN = 14  # [Obsolete]          Get temperature correction parameters (see #XMsgGetRadiometricParms)              */
+XMSGSETEN = 15  # [Obsolete]          Set temperature correction parameters (see #XMsgGetRadiometricParms)              */
+XMSGTEMPTOADU = 20  # [Thermography]      Convert a temperature to an ADU value (see #XFltTemperatureToADU)                 */
+XMSGGETTVALUE = 21  # [Thermography]      Retrieve an emissivity corrected value from a coordinate                         */
+XMSGGETRADIOMETRICPARMS = 22  # [Thermography]      Get temperature correction parameters (see #XMsgTempParms)                        */
+XMSGSETRADIOMETRICPARMS = 23  # [Thermography]      Set temperature correction parameters (see #XMsgTempParms)                        */
+XMSGSERIALISE = 100  # [App->Filter event] Serialise internal parameter state (write xml structure) see #XFltSetParameter    */
+XMSGDESERIALISE = 101  # [App->Filter event] Deserialise parameter state (read xml structure) see #XFltSetParameter            */
+XMSGGETPRIORITY = 102  # [Filter Management] Write the current filter priority to the long * provided in v_pMsgParm           */
+XMSGSETFILTERSTATE = 104  # [Filter Management] Enable or disable an image filter temporarily by sending 0/1 in v_pMsgParm       */
+XMSGISSERIALISEDIRTY = 105  # [Internal]                                                                                           */
+XMSGSTOREHANDLE = 106  # [Internal]          Start tracking the module handle for plugin image filters                        */
+XMSGUPDATETINT = 107  # [API->Filter event] Integration time change notification                                             */
+XMSGLINADUTOTEMP = 109  # [Thermography]      Convert a Linearized ADU value to a temperature (see #XFltADUToTemperatureLin)    */
+XMSGLINTEMPTOADU = 110  # [Thermography]      Convert a temperature to a Linearized ADU value (see #XFltTemperatureToADULin)    */
+XMSGUPDATESPAN = 111  # [API->Filter event] Span change notification                                                         */
+XMSGUPDATEPALETTE = 112  # [API->Filter event] Colour profile change notification                                               */
+XMSGFILTERQUEUED = 113  # [API->Filter event] A filter is queued                                                               */
+XMSGFILTERREMOVED = 114  # [API->Filter event] A filter is removed                                                              */
+XMSGDRAWOVERLAY = 200  # [API->Filter event] Draw the RGBA frame overlay, v_pMsgParm is the pointer to the RGBA data
+#                            structure                                                                        */
+XMSGLINEARISEOUTPUT = 201  # [Thermography]      When specifying a v_pMsgParm that is non zero, starts linearising adu output     */
+XMSGSETEMIMAP = 202  # [Thermography]      Streams the main emissivity map to the thermal filter (16 bit png, 65535 = 1.0)  */
+XMSGSETEMIMAPUSER = 203  # [Thermography]      Stream a user emissivity map to the thermal filter (16 bit png, 65535 = 1.0,
+#                            0 values are replaced by the emissivity in the main map)                         */
+XMSGGETEMIMAP = 204  # [Thermography]      Stream out the combined emissivity map                                           */
+XMSGCLREMIMAP = 205  # [Thermography]      Clear emissivity map                                                             */
+XMSGCLREMIMAPUSER = 206  # [Thermography]      Clear emissivity map (user)                                                      */
+XMSGPUSHRANGE = 207  # [Thermography]      Push a new linearization range to the thermal filter                             */
+XMSGTHMFILTERSTATE = 208  # [Thermography]      Filter event indicating thermal filter queue/removal                             */
+XMSGTHMADJUSTSET = 209  # [Thermography]      Set global offset & gain adu adjustment (pre-thermal conversion)                 */
+XMSGTHMADJUSTGET = 210  # [Thermography]      (see #XMsgTempAdjustmentParms)                                                      */
 
-XMSGLOG                 = 211  # [Plugin->API]       Fire a log event to the end user application\n
-                               #                            Target filter id: 0xffffffff                                                */
-XMSGGETDELTAT           = 212  # [Internal]                                                                                      */
-XMSGGETTINTRANGE        = 213  # [Plugin->API]       Request the exposure time range
-                               #                            Target filter id: 0xffffffff                                                 */
-XMSGCORRECTIONDIRTY         = 214  # [Internal]          The onboard thermography parameters have changed                             */
-XMSGHASRADIANCEINFO         = 215  # [Thermography]      Check if the radiance information is available. This is needed to for emissivity correction */
-XMSGCORRECTIONDATACHANGED   = 216  # [Internal]          New correction data is loaded                             */
-XMSGPOSTPROCESS             = 217  # [Internal]          A post processing step is introduced in the software correction filter */
+XMSGLOG = 211  # [Plugin->API]       Fire a log event to the end user application\n
+#                            Target filter id: 0xffffffff                                                */
+XMSGGETDELTAT = 212  # [Internal]                                                                                      */
+XMSGGETTINTRANGE = 213  # [Plugin->API]       Request the exposure time range
+#                            Target filter id: 0xffffffff                                                 */
+XMSGCORRECTIONDIRTY = 214  # [Internal]          The onboard thermography parameters have changed                             */
+XMSGHASRADIANCEINFO = 215  # [Thermography]      Check if the radiance information is available. This is needed to for emissivity correction */
+XMSGCORRECTIONDATACHANGED = 216  # [Internal]          New correction data is loaded                             */
+XMSGPOSTPROCESS = 217  # [Internal]          A post processing step is introduced in the software correction filter */
 
-XMSGZOOMLENSCONNECT     = 300  # [Zoom lens]         Connect to the zoom lens on the specified port.  */
-XMSGZOOMLENSGETSTATE    = 301  # [Zoom lens]         Get the current zoom/focus state from the zoom lens filter.  */
-XMSGZOOMLENSSETSTATE    = 302  # [Zoom lens]         Set the current zoom/focus state in the zoom lens filter.    */
-XMSGZOOMLENSGETINFO     = 303  # [Zoom lens]         Get some descriptive information about the connected lens.   */
+XMSGZOOMLENSCONNECT = (
+    300  # [Zoom lens]         Connect to the zoom lens on the specified port.  */
+)
+XMSGZOOMLENSGETSTATE = 301  # [Zoom lens]         Get the current zoom/focus state from the zoom lens filter.  */
+XMSGZOOMLENSSETSTATE = 302  # [Zoom lens]         Set the current zoom/focus state in the zoom lens filter.    */
+XMSGZOOMLENSGETINFO = 303  # [Zoom lens]         Get some descriptive information about the connected lens.   */
 
-XMSGUSER                = 24200 # If you develop your own image filter plugins, please use this constant to offset your messages. */
+XMSGUSER = 24200  # If you develop your own image filter plugins, please use this constant to offset your messages. */
 
-#XStatusMessage
-XSLOADLOGIC         = 1    # Passed when loading the camera's main logic file                           */
-XSLOADVIDEOLOGIC    = 2    # Passed when loading the camera's video output firmware                     */
-XSDATASTORAGE       = 3    # Passed when accessing persistent data on the camera                        */
-XSCORRECTION        = 4    # Passed when uploading correction data to the camera                        */
-XSSELFSTART         = 5    # Passed when a self starting camera is starting (instead of XSLoadLogic)    */
-XSMESSAGE           = 6    # String event
-                                #  This status message is used to relay critical errors and events originating
-                                #  from within the API.
-                                #  Cam|PropLimit|property=number - A filter notifies you your user interface should limit the value of 'property' to 'number'
-                                #  Cam|TemperatureFilter|RangeUpdate       - The thermography filter uses this to notify you of a span update.
-                                #  Cam|TemperatureFilter|Off               - The thermography filter suggests the application to dequeue the filter.
-                                #  Cam|InterfaceUpdate           - Internal, do not handle, returning E_BUG here causes the API to stop unpacking 'abcd.package'.packages to %appdata%/xenics/interface
-XSLOADGRABBER       = 7    # Passed when loading the framegrabber                                                                                */
-XSDEVICEINFORMATION = 8    # Device information passed when connecting a device, ulP is the lower part of the address. When using 64-bit the higher part of the address is stored in ulT */
+# XStatusMessage
+XSLOADLOGIC = (
+    1  # Passed when loading the camera's main logic file                           */
+)
+XSLOADVIDEOLOGIC = (
+    2  # Passed when loading the camera's video output firmware                     */
+)
+XSDATASTORAGE = (
+    3  # Passed when accessing persistent data on the camera                        */
+)
+XSCORRECTION = (
+    4  # Passed when uploading correction data to the camera                        */
+)
+XSSELFSTART = (
+    5  # Passed when a self starting camera is starting (instead of XSLoadLogic)    */
+)
+XSMESSAGE = 6  # String event
+#  This status message is used to relay critical errors and events originating
+#  from within the API.
+#  Cam|PropLimit|property=number - A filter notifies you your user interface should limit the value of 'property' to 'number'
+#  Cam|TemperatureFilter|RangeUpdate       - The thermography filter uses this to notify you of a span update.
+#  Cam|TemperatureFilter|Off               - The thermography filter suggests the application to dequeue the filter.
+#  Cam|InterfaceUpdate           - Internal, do not handle, returning E_BUG here causes the API to stop unpacking 'abcd.package'.packages to %appdata%/xenics/interface
+XSLOADGRABBER = 7  # Passed when loading the framegrabber                                                                                */
+XSDEVICEINFORMATION = 8  # Device information passed when connecting a device, ulP is the lower part of the address. When using 64-bit the higher part of the address is stored in ulT */
 
-#XGetFrameFlags
-XGF_BLOCKING    = 1    # In blocking-mode the method does not return immediately with the return codes #E_NO_FRAME / #I_OK.
-                       #  Instead the method waits for a frame and only returns until a frame was captured, or a time-out period has elapsed.
+# XGetFrameFlags
+XGF_BLOCKING = 1  # In blocking-mode the method does not return immediately with the return codes #E_NO_FRAME / #I_OK.
+#  Instead the method waits for a frame and only returns until a frame was captured, or a time-out period has elapsed.
 
-XGF_NOCONVERSION= 2    # Prevents internal conversion to 8 bit, specifying this flag reduces computation time, but prevents #SaveData() and the #Blit() method from working.
-XGF_FETCHPFF    = 4    # Retrieve the per frame footer with frame timing information. Call XCamera::GetFrameFooterLength() to determine the increase in frame size.
-XGF_RFU_1       = 8
-XGF_RFU_2       = 16
-XGF_RFU_3       = 32
+XGF_NOCONVERSION = 2  # Prevents internal conversion to 8 bit, specifying this flag reduces computation time, but prevents #SaveData() and the #Blit() method from working.
+XGF_FETCHPFF = 4  # Retrieve the per frame footer with frame timing information. Call XCamera::GetFrameFooterLength() to determine the increase in frame size.
+XGF_RFU_1 = 8
+XGF_RFU_2 = 16
+XGF_RFU_3 = 32
 
-#XSaveDataFlags
-XSD_FORCE16             = 1    # Forces 16-bit output independent of the current #ColourMode-setting (only possible for PNG's)
-XSD_FORCE8              = 2    # Forces 8-bit output independent of the current #ColourMode
-XSD_ALIGNLEFT           = 4    # Left aligns 16-bit output (#XSD_Force16 | #XSD_AlignLeft)
-XSD_SAVETHERMALINFO     = 8    # Save thermal conversion structure (only available when saving 16-bit PNGs)
-XSD_RFU_0               = 16   # Reserved
-XSD_RFU_1               = 32
-XSD_RFU_2               = 64
-XSD_RFU_3               = 128
+# XSaveDataFlags
+XSD_FORCE16 = 1  # Forces 16-bit output independent of the current #ColourMode-setting (only possible for PNG's)
+XSD_FORCE8 = 2  # Forces 8-bit output independent of the current #ColourMode
+XSD_ALIGNLEFT = 4  # Left aligns 16-bit output (#XSD_Force16 | #XSD_AlignLeft)
+XSD_SAVETHERMALINFO = (
+    8  # Save thermal conversion structure (only available when saving 16-bit PNGs)
+)
+XSD_RFU_0 = 16  # Reserved
+XSD_RFU_1 = 32
+XSD_RFU_2 = 64
+XSD_RFU_3 = 128
 
-#XSaveSettingFlags
-XSS_SAVECAMERAPROPS     = 1    # Define property sources to save settings from.
-XSS_SAVEGRABBERPROPS    = 2    #
-XSS_SAVEALLPROPS        = 4    # Also save properties marked 'No persist'.
-XSS_SS_RFU_3            = 8    #
+# XSaveSettingFlags
+XSS_SAVECAMERAPROPS = 1  # Define property sources to save settings from.
+XSS_SAVEGRABBERPROPS = 2  #
+XSS_SAVEALLPROPS = 4  # Also save properties marked 'No persist'.
+XSS_SS_RFU_3 = 8  #
 
-#XLoadSettingsFlags
-XSS_IGNORENAIS        = 1    # Ignore properties which do not affect the image.
-XSS_LS_RFU_1          = 2    #
-XSS_LS_RFU_2          = 4    #
-XSS_LS_RFU_3          = 8    #
+# XLoadSettingsFlags
+XSS_IGNORENAIS = 1  # Ignore properties which do not affect the image.
+XSS_LS_RFU_1 = 2  #
+XSS_LS_RFU_2 = 4  #
+XSS_LS_RFU_3 = 8  #
 
-#XLoadCalibrationFlags
-XLC_STARTSOFTWARECORRECTION     = 1    # Starts the software correction filter after unpacking the calibration data
-XLC_RFU_1                       = 2
-XLC_RFU_2                       = 4
-XLC_RFU_3                       = 8
+# XLoadCalibrationFlags
+XLC_STARTSOFTWARECORRECTION = (
+    1  # Starts the software correction filter after unpacking the calibration data
+)
+XLC_RFU_1 = 2
+XLC_RFU_2 = 4
+XLC_RFU_3 = 8
 
-#XPropType
-XTYPE_NONE              = 0x00000000
+# XPropType
+XTYPE_NONE = 0x00000000
 
-XTYPE_BASE_MASK         = 0x000000ff   # Type mask
-XTYPE_ATTR_MASK         = 0xffffff00   # Attribute mask
-XTYPE_BASE_NUMBER       = 0x00000001   # A number (floating)
-XTYPE_BASE_ENUM         = 0x00000002   # An enumerated type (a choice)
-XTYPE_BASE_BOOL         = 0x00000004   # Boolean (true / false / 1 / 0)
-XTYPE_BASE_BLOB         = 0x00000008   # Binary large object
-XTYPE_BASE_STRING       = 0x00000010   # String
-XTYPE_BASE_ACTION       = 0x00000020   # Action (button)
-XTYPE_BASE_RFU1         = 0x00000040   # RFU
-XTYPE_BASE_RFU2         = 0x00000080   # RFU
+XTYPE_BASE_MASK = 0x000000FF  # Type mask
+XTYPE_ATTR_MASK = 0xFFFFFF00  # Attribute mask
+XTYPE_BASE_NUMBER = 0x00000001  # A number (floating)
+XTYPE_BASE_ENUM = 0x00000002  # An enumerated type (a choice)
+XTYPE_BASE_BOOL = 0x00000004  # Boolean (true / false / 1 / 0)
+XTYPE_BASE_BLOB = 0x00000008  # Binary large object
+XTYPE_BASE_STRING = 0x00000010  # String
+XTYPE_BASE_ACTION = 0x00000020  # Action (button)
+XTYPE_BASE_RFU1 = 0x00000040  # RFU
+XTYPE_BASE_RFU2 = 0x00000080  # RFU
 
-XTYPE_BASE_MINMAX       = 0x00002000   # The property accepts the strings 'min' and 'max' to set the best achievable extremities.
-XTYPE_BASE_READONCE     = 0x00001000   # Property needs to be read at start-up only
-XTYPE_BASE_NOPERSIST    = 0x00000800   # Property shouldn't be persisted (saved & restored)
-XTYPE_BASE_NAI          = 0x00000400   # Property does not affect image intensity level ('Not Affecting Image')
-XTYPE_BASE_RW           = 0x00000300   # Write and read back
-XTYPE_BASE_WRITEABLE    = 0x00000200   # Writeable properties have this set in their high byte
-XTYPE_BASE_READABLE     = 0x00000100   # Readable properties have this set in their high byte
+XTYPE_BASE_MINMAX = 0x00002000  # The property accepts the strings 'min' and 'max' to set the best achievable extremities.
+XTYPE_BASE_READONCE = 0x00001000  # Property needs to be read at start-up only
+XTYPE_BASE_NOPERSIST = 0x00000800  # Property shouldn't be persisted (saved & restored)
+XTYPE_BASE_NAI = (
+    0x00000400  # Property does not affect image intensity level ('Not Affecting Image')
+)
+XTYPE_BASE_RW = 0x00000300  # Write and read back
+XTYPE_BASE_WRITEABLE = (
+    0x00000200  # Writeable properties have this set in their high byte
+)
+XTYPE_BASE_READABLE = 0x00000100  # Readable properties have this set in their high byte
 
-XTYPE_NUMBER            = 0x00000201   # Write only number
-XTYPE_ENUM              = 0x00000202   # Write only enumeration
-XTYPE_BOOL              = 0x00000204   # Write only boolean
-XTYPE_BLOB              = 0x00000208   # Write only binary large object
-XTYPE_STRING            = 0x00000210   # Write only string
-XTYPE_ACTION            = 0x00000220   # Action (button)
+XTYPE_NUMBER = 0x00000201  # Write only number
+XTYPE_ENUM = 0x00000202  # Write only enumeration
+XTYPE_BOOL = 0x00000204  # Write only boolean
+XTYPE_BLOB = 0x00000208  # Write only binary large object
+XTYPE_STRING = 0x00000210  # Write only string
+XTYPE_ACTION = 0x00000220  # Action (button)
 
-XTYPE_RO_NUMBER         = 0x00000101   # Read only number
-XTYPE_RO_ENUM           = 0x00000102   # Read only enumeration
-XTYPE_RO_BOOL           = 0x00000104   # Read only boolean
-XTYPE_RO_BLOB           = 0x00000108   # Read only binary large object
-XTYPE_RO_STRING         = 0x00000110   # Read only string
+XTYPE_RO_NUMBER = 0x00000101  # Read only number
+XTYPE_RO_ENUM = 0x00000102  # Read only enumeration
+XTYPE_RO_BOOL = 0x00000104  # Read only boolean
+XTYPE_RO_BLOB = 0x00000108  # Read only binary large object
+XTYPE_RO_STRING = 0x00000110  # Read only string
 
-XTYPE_RW_NUMBER         = 0x00000301   # R/W number
-XTYPE_RW_ENUM           = 0x00000302   # R/W enumeration
-XTYPE_RW_BOOL           = 0x00000304   # R/W boolean
-XTYPE_RW_BLOB           = 0x00000308   # R/W binary large object
-XTYPE_RW_STRING         = 0x00000310   # R/W string
+XTYPE_RW_NUMBER = 0x00000301  # R/W number
+XTYPE_RW_ENUM = 0x00000302  # R/W enumeration
+XTYPE_RW_BOOL = 0x00000304  # R/W boolean
+XTYPE_RW_BLOB = 0x00000308  # R/W binary large object
+XTYPE_RW_STRING = 0x00000310  # R/W string
 
-#XDirectories
-XDIR_FILTERDATA         = 0x0000   # Filter data (%APPDATA%/XenICs/Data/&lt;sessionnumber&gt;)
-XDIR_SCRIPTROOT         = 0x0001   # Script root (%APPDATA%/XenICs/Interface/&lt;PID-number&gt;)
-XDIR_CALIBRATIONS       = 0x0002   # Calibration folder (%ProgramFiles%/Xeneth/Calibrations)
-XDIR_INSTALLDIR         = 0x0003   # Installation folder (%CommonProgramFiles%/XenICs/Runtime)
-XDIR_PLUGINS            = 0x0004   # Plugin folder (%CommonProgramFiles%/XenICs/Runtime/Plugins)
-XDIR_CACHEPATH          = 0x0005   # Cache folder (%APPDATA%/XenICs/Cache)
-XDIR_SDKRESOURCES       = 0x0006   # SDK resource folder (%CommonProgramFiles%/XenICs/Runtime/Resources)
-XDIR_XENETH             = 0x0007   # Xeneth installation directory
-XDIR_GRABBERSCRIPTROOT  = 0x0008   # Script root (%APPDATA%/XenICs/Interface/&lt;FrameGrabber&gt;)
+# XDirectories
+XDIR_FILTERDATA = 0x0000  # Filter data (%APPDATA%/XenICs/Data/&lt;sessionnumber&gt;)
+XDIR_SCRIPTROOT = 0x0001  # Script root (%APPDATA%/XenICs/Interface/&lt;PID-number&gt;)
+XDIR_CALIBRATIONS = 0x0002  # Calibration folder (%ProgramFiles%/Xeneth/Calibrations)
+XDIR_INSTALLDIR = 0x0003  # Installation folder (%CommonProgramFiles%/XenICs/Runtime)
+XDIR_PLUGINS = 0x0004  # Plugin folder (%CommonProgramFiles%/XenICs/Runtime/Plugins)
+XDIR_CACHEPATH = 0x0005  # Cache folder (%APPDATA%/XenICs/Cache)
+XDIR_SDKRESOURCES = (
+    0x0006  # SDK resource folder (%CommonProgramFiles%/XenICs/Runtime/Resources)
+)
+XDIR_XENETH = 0x0007  # Xeneth installation directory
+XDIR_GRABBERSCRIPTROOT = (
+    0x0008  # Script root (%APPDATA%/XenICs/Interface/&lt;FrameGrabber&gt;)
+)
 
-#XDeviceStates
-XDS_AVAILABLE = 0x0    # The device is available to establish a connection.
-XDS_BUSY = 0x1         # The device is currently in use.
+# XDeviceStates
+XDS_AVAILABLE = 0x0  # The device is available to establish a connection.
+XDS_BUSY = 0x1  # The device is currently in use.
 XDS_UNREACHABLE = 0x2  # The device was detected but is unreachable.
 # pylint: enable=C0301
 # fmt: on
@@ -275,7 +303,7 @@ class _XDeviceInformation(Structure):
     ]
 
 
-class Bobcat640():
+class Bobcat640:
     """
     Xeneth's Cheetah640 camera.
 
@@ -308,13 +336,8 @@ class Bobcat640():
     ### Camera Interface ###
 
     def __init__(
-            self,
-            virtual=False,
-            temperature=None,
-            pitch_um=(20,20),
-            verbose=True,
-            **kwargs
-        ):
+        self, virtual=False, temperature=None, pitch_um=(20, 20), verbose=True, **kwargs
+    ):
         """
         Initialize camera. Default ``profile`` is ``'free'``.
 
@@ -1212,15 +1235,11 @@ class Bobcat640():
         if (woi[0]) % min_w_factor:
             woi[0] = max([woi[0] - woi[0] % min_w_factor, 0])
         if (woi[1] - woi[0] + 1) % min_w_factor:
-            woi[1] = (
-                woi[1] + min_w_factor - (woi[1] - woi[0]) % min_w_factor
-            )
+            woi[1] = woi[1] + min_w_factor - (woi[1] - woi[0]) % min_w_factor
         if (woi[2]) % min_h_factor:
             woi[2] = max([woi[2] - woi[2] % min_h_factor, 0])
         if (woi[3] - woi[2] + 1) % min_h_factor:
-            woi[3] = (
-                woi[3] + min_h_factor - (woi[3] - woi[2]) % min_h_factor
-            )
+            woi[3] = woi[3] + min_h_factor - (woi[3] - woi[2]) % min_h_factor
 
         # Set new WOI
         for i, prop in enumerate(woi_prop):
@@ -1366,7 +1385,9 @@ class Bobcat640():
                     return im
         return -1
 
-    def _get_image_hw(self, timeout_s=None, frame_type=FT_NATIVE, block=True, convert=True):
+    def _get_image_hw(
+        self, timeout_s=None, frame_type=FT_NATIVE, block=True, convert=True
+    ):
         """
         Main grabbing function; captures latest image into single frame buffer.
 
@@ -1543,4 +1564,3 @@ if __name__ == "__main__":
 
     print(im)
     cam.close()
-

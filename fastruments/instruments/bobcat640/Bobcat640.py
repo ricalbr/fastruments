@@ -15,14 +15,17 @@ Usage (direct link, no DHCP):
     cam.set_framerate(50.0)
     cam.stop(); cam.close()
 """
+
 import ctypes as C
-from ctypes import c_uint, c_ushort
-import numpy as np
-from typing import Optional, Tuple
-import time
 import ipaddress
 import os
 import sys
+import time
+from ctypes import c_uint, c_ushort
+from typing import Optional, Tuple
+
+import numpy as np
+
 
 class Bobcat640:
     # ---------------- Xeneth ctypes glue ----------------
@@ -30,9 +33,7 @@ class Bobcat640:
         # Try common Windows & Linux locations/names.
         candidates = []
         if os.name == "nt":
-            candidates = [
-                r"C:\Program Files\Common Files\XenICs\Runtime\xeneth64.dll"
-            ]
+            candidates = [r"C:\Program Files\Common Files\XenICs\Runtime\xeneth64.dll"]
             loader = C.WinDLL
         else:
             candidates = [
@@ -48,18 +49,20 @@ class Bobcat640:
             except OSError as e:
                 last = e
                 print(e)
-        raise OSError("Could not load Xeneth runtime. Install Xeneth SDK or add it to PATH/LD_LIBRARY_PATH.") from last
+        raise OSError(
+            "Could not load Xeneth runtime. Install Xeneth SDK or add it to PATH/LD_LIBRARY_PATH."
+        ) from last
 
     def _bind_minimal_prototypes(self):
-        
+
         x = self.xeneth
         XCHANDLE = C.c_void_p
-        UINT     = c_uint
-        USHORT   = c_ushort
-        PVOID    = C.c_void_p
+        UINT = c_uint
+        USHORT = c_ushort
+        PVOID = C.c_void_p
 
         x.XC_OpenCamera.restype = XCHANDLE
-        
+
         # Prefer URL open; some older SDKs expose index-only.
         try:
             x.XC_OpenCamera.argtypes = [C.c_char_p, PVOID, PVOID]
@@ -68,15 +71,20 @@ class Bobcat640:
             x.XC_OpenCamera.argtypes = [UINT]
             self._open_by_url = False
 
-        x.XC_CloseCamera.argtypes = [XCHANDLE];              x.XC_CloseCamera.restype  = UINT
-        x.XC_StartCapture.argtypes = [XCHANDLE];             x.XC_StartCapture.restype = UINT
-        x.XC_StopCapture.argtypes  = [XCHANDLE];             x.XC_StopCapture.restype  = UINT
-        x.XC_GetWidth.argtypes     = [XCHANDLE];             x.XC_GetWidth.restype     = UINT
-        x.XC_GetHeight.argtypes    = [XCHANDLE];             x.XC_GetHeight.restype    = UINT
-        x.XC_GetFrameSize.argtypes = [XCHANDLE];      
+        x.XC_CloseCamera.argtypes = [XCHANDLE]
+        x.XC_CloseCamera.restype = UINT
+        x.XC_StartCapture.argtypes = [XCHANDLE]
+        x.XC_StartCapture.restype = UINT
+        x.XC_StopCapture.argtypes = [XCHANDLE]
+        x.XC_StopCapture.restype = UINT
+        x.XC_GetWidth.argtypes = [XCHANDLE]
+        x.XC_GetWidth.restype = UINT
+        x.XC_GetHeight.argtypes = [XCHANDLE]
+        x.XC_GetHeight.restype = UINT
+        x.XC_GetFrameSize.argtypes = [XCHANDLE]
         x.XC_GetFrameSize.restype = UINT
         x.XC_GetFrame.argtypes = [XCHANDLE, C.POINTER(USHORT), UINT]
-        x.XC_GetFrame.restype  = UINT
+        x.XC_GetFrame.restype = UINT
 
     # ---------------- GenICam / Harvester ----------------
     def _maybe_init_harvester(self):
@@ -96,7 +104,9 @@ class Bobcat640:
             sep = ";" if os.name == "nt" else ":"
             for base in filter(None, path.split(sep)):
                 try:
-                    self.h.add_cti_file(base)  # Harvester will recurse and load .cti files inside
+                    self.h.add_cti_file(
+                        base
+                    )  # Harvester will recurse and load .cti files inside
                 except Exception:
                     pass
 
@@ -110,6 +120,7 @@ class Bobcat640:
         """Optionally add a GenTL .cti file and refresh discovery."""
         if self.h is None:
             from harvesters.core import Harvester
+
             self.h = Harvester()
         self.h.add_cti_file(path)
         self.h.update()
@@ -126,19 +137,26 @@ class Bobcat640:
         self._maybe_init_harvester()
         if self.h is None:
             return None, None
+
         def score(di):
             s = 0
             v = (getattr(di, "vendor", "") or "").lower()
             m = (getattr(di, "model", "") or "").lower()
-            if "xenics" in v: s += 2
-            if "bobcat" in m: s += 2
-            if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV": s += 1
+            if "xenics" in v:
+                s += 2
+            if "bobcat" in m:
+                s += 2
+            if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV":
+                s += 1
             return s
+
         items = sorted(self.h.device_info_list, key=score, reverse=True)
         for di in items:
             if getattr(di, "tl_type", "") and di.tl_type.upper() != "GEV":
                 continue
-            ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get("ip_address")
+            ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get(
+                "ip_address"
+            )
             return di, ip
         return None, None
 
@@ -152,15 +170,21 @@ class Bobcat640:
             ia = self.h.create_image_acquirer(di)
             nm = ia.remote_device.node_map
             # Enable persistent config if present
-            for name in ("GevCurrentIPConfigurationPersistent", "GevCurrentIPConfigurationLLA", "GevCurrentIPConfigurationDHCP"):
+            for name in (
+                "GevCurrentIPConfigurationPersistent",
+                "GevCurrentIPConfigurationLLA",
+                "GevCurrentIPConfigurationDHCP",
+            ):
                 try:
                     n = getattr(nm, name)
-                    if name.endswith("Persistent"): n.value = True
-                    if name.endswith("LLA") or name.endswith("DHCP"): n.value = False
+                    if name.endswith("Persistent"):
+                        n.value = True
+                    if name.endswith("LLA") or name.endswith("DHCP"):
+                        n.value = False
                 except Exception:
                     pass
             # Set persistent values
-            for (node, val) in (
+            for node, val in (
                 ("GevPersistentIPAddress", ip),
                 ("GevPersistentSubnetMask", mask),
                 ("GevPersistentDefaultGateway", gw),
@@ -191,12 +215,14 @@ class Bobcat640:
             pass
         return ip
 
-    def discover(self,
-                 prefer_model: str = "Bobcat",
-                 prefer_vendor: str = "Xenics",
-                 desired_ip: str = "192.168.0.2",
-                 desired_mask: str = "255.255.255.0",
-                 desired_gw: str = "0.0.0.0") -> Optional[str]:
+    def discover(
+        self,
+        prefer_model: str = "Bobcat",
+        prefer_vendor: str = "Xenics",
+        desired_ip: str = "192.168.0.2",
+        desired_mask: str = "255.255.255.0",
+        desired_gw: str = "0.0.0.0",
+    ) -> Optional[str]:
         """
         Find a Xenics/Bobcat GigE camera. If its IP is link-local/missing,
         set a persistent static IP so we can open it directly via Xeneth.
@@ -216,12 +242,14 @@ class Bobcat640:
             return f"gev://{ip or desired_ip}"
 
     # ---------------- Lifecycle ----------------
-    def __init__(self,
-                 url: Optional[str] = None,
-                 auto_discover: bool = True,
-                 desired_ip: str = "192.168.0.2",
-                 desired_mask: str = "255.255.255.0",
-                 desired_gw: str = "0.0.0.0"):
+    def __init__(
+        self,
+        url: Optional[str] = None,
+        auto_discover: bool = True,
+        desired_ip: str = "192.168.0.2",
+        desired_mask: str = "255.255.255.0",
+        desired_gw: str = "0.0.0.0",
+    ):
         self.xeneth = self._load_xeneth()
         self._bind_minimal_prototypes()
         self.h = None
@@ -230,9 +258,11 @@ class Bobcat640:
         self._h = None
         self._nbytes = None
         self._url = None
-        
+
         if url is None and auto_discover:
-            url = self.discover(desired_ip=desired_ip, desired_mask=desired_mask, desired_gw=desired_gw)
+            url = self.discover(
+                desired_ip=desired_ip, desired_mask=desired_mask, desired_gw=desired_gw
+            )
         if url is None:
             raise RuntimeError(
                 "No camera URL provided and auto-discovery unavailable.\n"
@@ -285,8 +315,7 @@ class Bobcat640:
         """Copy the latest frame from Xeneth buffer into a NumPy uint16 array."""
         frame16 = np.empty((self._h, self._w), dtype=np.uint16)
         err = self.xeneth.XC_GetFrame(
-            self.cam,
-            frame16.ctypes.data_as(C.POINTER(c_ushort)),0
+            self.cam, frame16.ctypes.data_as(C.POINTER(c_ushort)), 0
         )
         if err != 0:
             raise RuntimeError(f"XC_CopyFrameBuffer failed (code {err})")
@@ -308,7 +337,9 @@ class Bobcat640:
             pass
         for di in self.h.device_info_list:
             if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV":
-                ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get("ip_address")
+                ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get(
+                    "ip_address"
+                )
                 if (not target_ip) or (ip == target_ip):
                     return self.h.create_image_acquirer(di)
         # Fallback to first GEV
@@ -336,8 +367,10 @@ class Bobcat640:
             ia.destroy()
             raise RuntimeError("Could not set exposure: GenICam node not found.")
         except Exception:
-            try: ia.destroy()
-            except Exception: pass
+            try:
+                ia.destroy()
+            except Exception:
+                pass
             raise
 
     def set_framerate(self, fps: float):
@@ -351,8 +384,11 @@ class Bobcat640:
             n.value = float(min(max(fps, n.min), n.max))
             ia.destroy()
         except Exception:
-            try: ia.destroy()
-            except Exception: pass
+            try:
+                ia.destroy()
+            except Exception:
+                pass
             raise
+
 
 # end class

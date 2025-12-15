@@ -1,16 +1,20 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import ctypes
+import pathlib
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
 from Camera import Camera
 from Instrument import Instrument
-import time
 from PIL import Image
-import pathlib
 
 CWD = str(pathlib.Path(__file__).resolve().parent)
 DLL_PATH = "C:\\Program Files\\Common Files\\XenICs\\Runtime\\xeneth64.dll"
-CAL_PATH = "C:\\Program Files\\Xeneth\Calibrations\\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
+CAL_PATH = (
+    "C:\\Program Files\\Xeneth\Calibrations\\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
+)
 SETTINGS_PATH = CWD + "\\test.xcf"
+
 
 class Xenics(Instrument, Camera):
 
@@ -29,7 +33,7 @@ class Xenics(Instrument, Camera):
         self.xenics_handle = None
         self.dll_path = dll_path
         self.camera_path = camera_path
-        
+
         # Calibration file is a path to a .xca calibration file
         self.calibration_file = calibration_file
         self.settings_file = settings_file
@@ -71,9 +75,13 @@ class Xenics(Instrument, Camera):
         # Load calibration
         if self.calibration_file is not None:
             flag = 1  # Use software correction
-            error = self.load_calibration( self.xenics_handle, self.calibration_file.encode("utf-8"), flag)
+            error = self.load_calibration(
+                self.xenics_handle, self.calibration_file.encode("utf-8"), flag
+            )
             if error != 0:
-                raise Exception(f"Could't load calibration file {self.calibration_file}. Error code: {error}")
+                raise Exception(
+                    f"Could't load calibration file {self.calibration_file}. Error code: {error}"
+                )
 
         property = "SETTLE "
         val = ctypes.c_ulong(1)
@@ -83,9 +91,13 @@ class Xenics(Instrument, Camera):
         # Load settings
         if self.settings_file is not None:
             flag = 1  # Ignore settings that do not affect the image
-            error = self.load_settings( self.xenics_handle, self.settings_file.encode("utf-8"), flag)
+            error = self.load_settings(
+                self.xenics_handle, self.settings_file.encode("utf-8"), flag
+            )
             if error != 0:
-                raise Exception( f"Could't load calibration file {self.settings_file}. Error code: {error}")
+                raise Exception(
+                    f"Could't load calibration file {self.settings_file}. Error code: {error}"
+                )
 
         val = ctypes.c_ulong(1)
         self.get_property_value(self.xenics_handle, property.encode("utf-8"), val)
@@ -123,7 +135,11 @@ class Xenics(Instrument, Camera):
 
         self.error_to_string = self.xenicsdll.XC_ErrorToString
         self.error_to_string.restype = ctypes.c_int32
-        self.error_to_string.argtypes = (ctypes.c_int32, ctypes.c_char_p, ctypes.c_int32)
+        self.error_to_string.argtypes = (
+            ctypes.c_int32,
+            ctypes.c_char_p,
+            ctypes.c_int32,
+        )
 
         self.is_initialised = self.xenicsdll.XC_IsInitialised
         self.is_initialised.restype = ctypes.c_int32
@@ -159,7 +175,13 @@ class Xenics(Instrument, Camera):
 
         self.get_frame_dll = self.xenicsdll.XC_GetFrame
         self.get_frame_dll.restype = ctypes.c_ulong  # ErrCode
-        self.get_frame_dll.argtypes = (ctypes.c_int32, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_uint)
+        self.get_frame_dll.argtypes = (
+            ctypes.c_int32,
+            ctypes.c_ulong,
+            ctypes.c_ulong,
+            ctypes.c_void_p,
+            ctypes.c_uint,
+        )
 
         self.stop_capture = self.xenicsdll.XC_StopCapture
         self.stop_capture.restype = ctypes.c_ulong  # ErrCode
@@ -171,10 +193,14 @@ class Xenics(Instrument, Camera):
 
         self.enumerate_devices = self.xenicsdll.XCD_EnumerateDevices
         self.enumerate_devices.restype = ctypes.c_ulong  # ErrCode
-        self.enumerate_devices.argtypes = (ctypes.c_int32, ctypes.c_uint, ctypes.c_ulong)
+        self.enumerate_devices.argtypes = (
+            ctypes.c_int32,
+            ctypes.c_uint,
+            ctypes.c_ulong,
+        )
 
         self.close_camera = self.xenicsdll.XC_CloseCamera
-        
+
         # Returns void
         self.close_camera.argtypes = (ctypes.c_int32,)  # Handle
 
@@ -199,7 +225,11 @@ class Xenics(Instrument, Camera):
 
         self.get_property_value = self.xenicsdll.XC_GetPropertyValueL
         self.get_property_value.restype = ctypes.c_ulong  # ErrCode
-        self.get_property_value.argtypes = (ctypes.c_int32, ctypes.c_char_p, ctypes.POINTER(ctypes.c_ulong))
+        self.get_property_value.argtypes = (
+            ctypes.c_int32,
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_ulong),
+        )
 
     def get_frame_size(self):
         """

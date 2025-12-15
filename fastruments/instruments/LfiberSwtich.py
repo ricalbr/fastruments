@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Mon Dec 8 17:30:00 2025
-
-@author: Francesco Ceccarelli
+Lfiber OPTICAL SWITCHES
 
 This module provides a high-level Python interface for controlling Lfiber
 Optical Switches (1xN Series) via RS-232/USB using the PyVISA library.
@@ -17,11 +13,12 @@ Supported models include:
 - Single-Mode (SM) Fiber Switches (LF-OSW-SM Series)
 """
 
-import pyvisa
 import time
 
+import pyvisa
 
-class LF_OSW:
+
+class FiberSwitch:
     """
     High-level interface for Lfiber 1xN Optical Fiber Switches.
 
@@ -36,8 +33,8 @@ class LF_OSW:
     timeout : int, optional
         Communication timeout in milliseconds (default: ``5000``).
     switching_delay : float, optional
-        Wait time in seconds after sending a switching command and before 
-        reading the response (default: ``0.1``). This ensures the hardware 
+        Wait time in seconds after sending a switching command and before
+        reading the response (default: ``0.1``). This ensures the hardware
         completes the operation.
     verbose : bool, optional
         If ``True``, prints informational messages (default: ``True``).
@@ -78,7 +75,13 @@ class LF_OSW:
     __START_CHAR = "<"
     __END_CHAR = ">"
 
-    def __init__(self, resource: str, timeout: int = 5000, switching_delay: float = 0.1, verbose: bool = True) -> None:
+    def __init__(
+        self,
+        resource: str,
+        timeout: int = 5000,
+        switching_delay: float = 0.1,
+        verbose: bool = True,
+    ) -> None:
         """
         Initialize communication with the Lfiber Optical Switch.
 
@@ -97,15 +100,19 @@ class LF_OSW:
             rm = pyvisa.ResourceManager("@py")
             self.inst = rm.open_resource(resource)
             self.inst.timeout = timeout
-            if isinstance(self.inst, pyvisa.resources.SerialInstrument):        # Configure RS-232 specific parameters as per datasheet
+            if isinstance(
+                self.inst, pyvisa.resources.SerialInstrument
+            ):  # Configure RS-232 specific parameters as per datasheet
                 self.inst.baud_rate = self.__BAUD_RATE
                 self.inst.data_bits = self.__DATA_BITS
                 self.inst.stop_bits = self.__STOP_BITS
                 self.inst.parity = self.__PARITY
-                self.inst.read_termination = self.__END_CHAR                    # Read until '>'
-                self.inst.write_termination = None                              # We manually add delimiters
+                self.inst.read_termination = self.__END_CHAR  # Read until '>'
+                self.inst.write_termination = None  # We manually add delimiters
         except Exception as e:
-            raise ConnectionError(f"[LF_OSW][ERROR] Could not connect to optical switch: {e}.")
+            raise ConnectionError(
+                f"[LF_OSW][ERROR] Could not connect to optical switch: {e}."
+            )
         try:
             self.__update_info(self.idn())
             if self.verbose:
@@ -119,45 +126,47 @@ class LF_OSW:
     def __query_cmd(self, command_body: str) -> str:
         """
         Send a framed command to the instrument and return the raw response payload.
-    
+
         This method implements the low-level ASCII protocol used by Lfiber optical
         switches. The command is wrapped between the required start and end
         delimiters (`__START_CHAR` and `__END_CHAR`). The instrument replies
         using the same format, and the method extracts and returns only the
         content inside the delimiters.
-    
+
         Parameters
         ----------
         command_body : str
             The body of the command to send, without start/end delimiters.
             Example: ``"OSW_OUT_01"``.
-    
+
         Returns
         -------
         str
             The response string without delimiters. For example, a device reply
             ``"<OSW_OUT_OK>"`` becomes ``"OSW_OUT_OK"``.
-    
+
         Notes
         -----
         This helper abstracts the serial framing protocol and is used by all
         higher-level query and command methods (such as `idn()`, `set_channel()`,
         and `get_channel()`).
-        """        
+        """
         self.inst.write(f"{self.__START_CHAR}{command_body}{self.__END_CHAR}")
-        response = self.inst.read()                                             # Read response. Since read_termination is '>', we get "<RESPONSE"
-        return response.lstrip(self.__START_CHAR).strip()                       # Strip the leading '<'
+        response = (
+            self.inst.read()
+        )  # Read response. Since read_termination is '>', we get "<RESPONSE"
+        return response.lstrip(self.__START_CHAR).strip()  # Strip the leading '<'
 
     def __update_info(self, idn_str: str) -> dict:
         """
-        Parse the identification string (e.g., LF-OSW-1X16-1550-PMF...>) to 
+        Parse the identification string (e.g., LF-OSW-1X16-1550-PMF...>) to
         determine number of channels and fiber properties.
 
         Parameters
         ----------
         idn_str : str
             Response string obtained from 'idn()'.
-            
+
         Returns
         -------
         dict
@@ -168,19 +177,25 @@ class LF_OSW:
         ValueError
             If the model string has unexpected format.
         """
-        # 
-        model_parts = idn_str.split('-')                                        # Parameter idn_str is typically Model+Config (e.g., LF-OSW-1X16-1550-PMF...)
-        if len(model_parts) <= 4:                                               # Check for correct format
-            raise ValueError(f"[LF_OSW][ERROR] Could not parse model information from {idn_str}.")
-        self.model_info = {                                                     # Build information dictionary about the device
+        #
+        model_parts = idn_str.split(
+            "-"
+        )  # Parameter idn_str is typically Model+Config (e.g., LF-OSW-1X16-1550-PMF...)
+        if len(model_parts) <= 4:  # Check for correct format
+            raise ValueError(
+                f"[LF_OSW][ERROR] Could not parse model information from {idn_str}."
+            )
+        self.model_info = {  # Build information dictionary about the device
             "model": idn_str,
             "channels": int(model_parts[2][2:]),
             "wavelength": model_parts[3],
-            "fiber_type": model_parts[4]
+            "fiber_type": model_parts[4],
         }
         if self.verbose:
-            print(f"[LF_OSW] Model string parsed: Channels: {self.model_info['channels']}, "
-                  f"Wavelength: {self.model_info['wavelength']} nm, Fiber: {self.model_info['fiber_type']}.")
+            print(
+                f"[LF_OSW] Model string parsed: Channels: {self.model_info['channels']}, "
+                f"Wavelength: {self.model_info['wavelength']} nm, Fiber: {self.model_info['fiber_type']}."
+            )
         return self.model_info
 
     # ------------------------------------------------------------------
@@ -189,21 +204,23 @@ class LF_OSW:
     def idn(self) -> str:
         """
         Query the instrument identification string.
-        
+
         Returns
         -------
         str
             Full identification string.
-            
+
         Raises
         ------
         RuntimeError
             If the instrument responds with unexpected format.
         """
-        raw_resp = self.__query_cmd("OSW_TYPE_?")                               # Protocol query: <OSW_TYPE_?>
+        raw_resp = self.__query_cmd("OSW_TYPE_?")  # Protocol query: <OSW_TYPE_?>
         prefix = "OSW_TYPE_"
         if not raw_resp.startswith(prefix):
-            raise RuntimeError(f"[LF_OSW][ERROR] Unexpected response format: {raw_resp}.")
+            raise RuntimeError(
+                f"[LF_OSW][ERROR] Unexpected response format: {raw_resp}."
+            )
         idn_str = raw_resp.replace(prefix, "")
         if self.verbose:
             print(f"[LF_OSW] IDN: {idn_str}.")
@@ -212,7 +229,7 @@ class LF_OSW:
     def reset(self) -> None:
         """
         Reset the optical switch (sets to channel 00).
-        
+
         Notes
         ------
         Reset means that the input is not connected through one of the optical
@@ -223,22 +240,22 @@ class LF_OSW:
         RuntimeError
             If the instrument fails to reset.
         """
-        resp = self.__query_cmd("OSW_OUT_00")                                   # Set channel to 00 resets the switch 
-        time.sleep(self.switching_delay)                                        # Wait for hardware switching
+        resp = self.__query_cmd("OSW_OUT_00")  # Set channel to 00 resets the switch
+        time.sleep(self.switching_delay)  # Wait for hardware switching
         if resp == "OSW_OUT_OK":
             if self.verbose:
                 print("[LF_OSW] Instrument reset (channel 00).")
         else:
-             raise RuntimeError(f"[LF_OSW][ERROR] Reset failed. Response: {resp}.")
+            raise RuntimeError(f"[LF_OSW][ERROR] Reset failed. Response: {resp}.")
 
     def close(self) -> None:
         """
         Close the VISA connection to the instrument.
-        
+
         Notes
         -----
         Should always be called before program termination to release the COM resource.
-        
+
         Raises
         ------
         RuntimeError
@@ -261,7 +278,7 @@ class LF_OSW:
         Parameters
         ----------
         channel : int
-            Target channel number (1 to `model_info['channels']`). 
+            Target channel number (1 to `model_info['channels']`).
             Setting 0 is equivalent to reset (handled by `reset()`).
 
         Raises
@@ -272,20 +289,26 @@ class LF_OSW:
         RuntimeError
             If the instrument reports an error other than overflow.
         """
-        if not (1 <= channel <= self.model_info['channels']):
+        if not (1 <= channel <= self.model_info["channels"]):
             raise ValueError(
                 f"[LF_OSW][ERROR] Invalid channel {channel}. "
                 f"Valid range: 1 to {self.model_info['channels']}."
             )
-        resp = self.__query_cmd(f"OSW_OUT_{channel:02d}")                       # Format command: OSW_OUT_XX (e.g., OSW_OUT_01)
-        time.sleep(self.switching_delay)                                        # Wait for hardware switching
-        if resp == "OSW_OUT_OK":                                                # Validate response (success: <OSW_OUT_OK>, error: <OSW_OUT_OVERFLOW>)
+        resp = self.__query_cmd(
+            f"OSW_OUT_{channel:02d}"
+        )  # Format command: OSW_OUT_XX (e.g., OSW_OUT_01)
+        time.sleep(self.switching_delay)  # Wait for hardware switching
+        if (
+            resp == "OSW_OUT_OK"
+        ):  # Validate response (success: <OSW_OUT_OK>, error: <OSW_OUT_OVERFLOW>)
             if self.verbose:
                 print(f"[LF_OSW] Switch set to channel {channel:02d}.")
         elif resp == "OSW_OUT_OVERFLOW":
-             raise ValueError("[LF_OSW][ERROR] Channel overflow reported by device.")
+            raise ValueError("[LF_OSW][ERROR] Channel overflow reported by device.")
         else:
-             raise RuntimeError(f"[LF_OSW][ERROR] Failed to set channel. Response: {resp}.")
+            raise RuntimeError(
+                f"[LF_OSW][ERROR] Failed to set channel. Response: {resp}."
+            )
 
     def get_channel(self) -> int:
         """
@@ -301,7 +324,9 @@ class LF_OSW:
         RuntimeError
             If the instrument responds with unexpected format.
         """
-        resp = self.__query_cmd("OSW_OUT_?")                                    # Protocol query: <OSW_OUT_?>, expected response: <OSW_OUT_XX>
+        resp = self.__query_cmd(
+            "OSW_OUT_?"
+        )  # Protocol query: <OSW_OUT_?>, expected response: <OSW_OUT_XX>
         prefix = "OSW_OUT_"
         if not resp.startswith(prefix):
             raise RuntimeError(f"[LF_OSW][ERROR] Unexpected response format: {resp}.")
@@ -310,3 +335,17 @@ class LF_OSW:
         if self.verbose:
             print(f"[LF_OSW] Current channel: {channel:02d}.")
         return channel
+
+if __name__ == "__main__":
+
+    osw = FiberSwitch("ASRL3::INSTR", switching_delay=0.1, verbose=True)
+
+    # General communication and status
+    osw.idn()
+    osw.reset()
+
+    # Channel control
+    osw.get_channel()
+    osw.set_channel(5)
+
+    osw.close()

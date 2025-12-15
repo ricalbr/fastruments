@@ -17,12 +17,13 @@ setups where fast, programmable infrared imaging is required.
 """
 
 import ctypes as C
-from ctypes import c_uint, c_ushort
-import numpy as np
-from typing import Optional, Tuple
-import time
 import ipaddress
 import os
+import time
+from ctypes import c_uint, c_ushort
+from typing import Optional, Tuple
+
+import numpy as np
 
 
 class Bobcat640:
@@ -91,13 +92,15 @@ class Bobcat640:
     - GenICam features require a valid GenTL Producer (.cti) and the 'harvesters' package.
     """
 
-    def __init__(self,
-                 url: Optional[str] = None,
-                 auto_discover: bool = True,
-                 desired_ip: str = "192.168.0.2",
-                 desired_mask: str = "255.255.255.0",
-                 desired_gw: str = "0.0.0.0",
-                 verbose: bool = True):
+    def __init__(
+        self,
+        url: Optional[str] = None,
+        auto_discover: bool = True,
+        desired_ip: str = "192.168.0.2",
+        desired_mask: str = "255.255.255.0",
+        desired_gw: str = "0.0.0.0",
+        verbose: bool = True,
+    ):
         """
         Initialize the Bobcat640 helper.
 
@@ -129,9 +132,9 @@ class Bobcat640:
         self._url = None
 
         if url is None and auto_discover:
-            url = self.discover(desired_ip=desired_ip,
-                                desired_mask=desired_mask,
-                                desired_gw=desired_gw)
+            url = self.discover(
+                desired_ip=desired_ip, desired_mask=desired_mask, desired_gw=desired_gw
+            )
             if self.verbose:
                 print(f"[BOBCAT640] Discovered URL: {url}")
 
@@ -180,7 +183,9 @@ class Bobcat640:
                     print(f"[BOBCAT640] Failed to load {p}: {e}")
                 last = e
 
-        raise OSError("Could not load Xeneth runtime. Install Xeneth SDK or add it to PATH/LD_LIBRARY_PATH.") from last
+        raise OSError(
+            "Could not load Xeneth runtime. Install Xeneth SDK or add it to PATH/LD_LIBRARY_PATH."
+        ) from last
 
     def _bind_minimal_prototypes(self):
         """
@@ -208,14 +213,20 @@ class Bobcat640:
             if self.verbose:
                 print("[BOBCAT640] XC_OpenCamera(index) interface detected.")
 
-        x.XC_CloseCamera.argtypes = [XCHANDLE];              x.XC_CloseCamera.restype  = UINT
-        x.XC_StartCapture.argtypes = [XCHANDLE];             x.XC_StartCapture.restype = UINT
-        x.XC_StopCapture.argtypes  = [XCHANDLE];             x.XC_StopCapture.restype  = UINT
-        x.XC_GetWidth.argtypes     = [XCHANDLE];             x.XC_GetWidth.restype     = UINT
-        x.XC_GetHeight.argtypes    = [XCHANDLE];             x.XC_GetHeight.restype    = UINT
-        x.XC_GetFrameSizeInBytes.argtypes = [XCHANDLE];      x.XC_GetFrameSizeInBytes.restype = UINT
+        x.XC_CloseCamera.argtypes = [XCHANDLE]
+        x.XC_CloseCamera.restype = UINT
+        x.XC_StartCapture.argtypes = [XCHANDLE]
+        x.XC_StartCapture.restype = UINT
+        x.XC_StopCapture.argtypes = [XCHANDLE]
+        x.XC_StopCapture.restype = UINT
+        x.XC_GetWidth.argtypes = [XCHANDLE]
+        x.XC_GetWidth.restype = UINT
+        x.XC_GetHeight.argtypes = [XCHANDLE]
+        x.XC_GetHeight.restype = UINT
+        x.XC_GetFrameSizeInBytes.argtypes = [XCHANDLE]
+        x.XC_GetFrameSizeInBytes.restype = UINT
         x.XC_CopyFrameBuffer.argtypes = [XCHANDLE, C.POINTER(USHORT), UINT]
-        x.XC_CopyFrameBuffer.restype  = UINT
+        x.XC_CopyFrameBuffer.restype = UINT
 
         if self.verbose:
             print("[BOBCAT640] Xeneth prototypes successfully bound.")
@@ -235,7 +246,9 @@ class Bobcat640:
             from harvesters.core import Harvester
         except Exception:
             if self.verbose:
-                print("[BOBCAT640] Harvester not available — skipping GenICam integration.")
+                print(
+                    "[BOBCAT640] Harvester not available — skipping GenICam integration."
+                )
             return
 
         self.h = Harvester()
@@ -276,18 +289,25 @@ class Bobcat640:
             s = 0
             v = (getattr(di, "vendor", "") or "").lower()
             m = (getattr(di, "model", "") or "").lower()
-            if "xenics" in v: s += 2
-            if "bobcat" in m: s += 2
-            if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV": s += 1
+            if "xenics" in v:
+                s += 2
+            if "bobcat" in m:
+                s += 2
+            if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV":
+                s += 1
             return s
 
         items = sorted(self.h.device_info_list, key=score, reverse=True)
         for di in items:
             if getattr(di, "tl_type", "") and di.tl_type.upper() != "GEV":
                 continue
-            ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get("ip_address")
+            ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get(
+                "ip_address"
+            )
             if self.verbose:
-                print(f"[BOBCAT640] Found candidate: {getattr(di, 'vendor', '')} {getattr(di, 'model', '')} ({ip})")
+                print(
+                    f"[BOBCAT640] Found candidate: {getattr(di, 'vendor', '')} {getattr(di, 'model', '')} ({ip})"
+                )
             return di, ip
         print("[BOBCAT640] No suitable GigE device found.")
         return None, None
@@ -303,16 +323,22 @@ class Bobcat640:
             ia = self.h.create_image_acquirer(di)
             nm = ia.remote_device.node_map
 
-            for name in ("GevCurrentIPConfigurationPersistent", "GevCurrentIPConfigurationLLA", "GevCurrentIPConfigurationDHCP"):
+            for name in (
+                "GevCurrentIPConfigurationPersistent",
+                "GevCurrentIPConfigurationLLA",
+                "GevCurrentIPConfigurationDHCP",
+            ):
                 try:
                     n = getattr(nm, name)
-                    if name.endswith("Persistent"): n.value = True
-                    if name.endswith("LLA") or name.endswith("DHCP"): n.value = False
+                    if name.endswith("Persistent"):
+                        n.value = True
+                    if name.endswith("LLA") or name.endswith("DHCP"):
+                        n.value = False
                 except Exception:
                     if self.verbose:
                         print(f"[BOBCAT640] Could not configure {name}")
 
-            for (node, val) in (
+            for node, val in (
                 ("GevPersistentIPAddress", ip),
                 ("GevPersistentSubnetMask", mask),
                 ("GevPersistentDefaultGateway", gw),
@@ -345,10 +371,12 @@ class Bobcat640:
             pass
         return ip
 
-    def discover(self,
-                 desired_ip: str = "192.168.0.2",
-                 desired_mask: str = "255.255.255.0",
-                 desired_gw: str = "0.0.0.0") -> Optional[str]:
+    def discover(
+        self,
+        desired_ip: str = "192.168.0.2",
+        desired_mask: str = "255.255.255.0",
+        desired_gw: str = "0.0.0.0",
+    ) -> Optional[str]:
         """
         Discover the Bobcat640 device and return a 'gev://<ip>' URL.
         """
@@ -390,7 +418,9 @@ class Bobcat640:
         self._w = int(self.xeneth.XC_GetWidth(self.cam))
         self._h = int(self.xeneth.XC_GetHeight(self.cam))
         self._nbytes = int(self.xeneth.XC_GetFrameSizeInBytes(self.cam))
-        print(f"[BOBCAT640] Camera opened — {self._w}x{self._h} ({self._nbytes} bytes/frame)")
+        print(
+            f"[BOBCAT640] Camera opened — {self._w}x{self._h} ({self._nbytes} bytes/frame)"
+        )
 
     def start(self):
         """Start frame capture."""
@@ -451,9 +481,7 @@ class Bobcat640:
         """
         frame16 = np.empty((self._h, self._w), dtype=np.uint16)
         err = self.xeneth.XC_CopyFrameBuffer(
-            self.cam,
-            frame16.ctypes.data_as(C.POINTER(c_ushort)),
-            self._nbytes
+            self.cam, frame16.ctypes.data_as(C.POINTER(c_ushort)), self._nbytes
         )
         if err != 0:
             raise RuntimeError(f"[BOBCAT640] XC_CopyFrameBuffer failed (code {err})")
@@ -479,13 +507,15 @@ class Bobcat640:
         self.h.update()
         target_ip = None
         try:
-            target_ip = self._url.split('://', 1)[1]
+            target_ip = self._url.split("://", 1)[1]
         except Exception:
             pass
 
         for di in self.h.device_info_list:
             if getattr(di, "tl_type", "") and di.tl_type.upper() == "GEV":
-                ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get("ip_address")
+                ip = getattr(di, "ipv4", None) or getattr(di, "info_dict", {}).get(
+                    "ip_address"
+                )
                 if (not target_ip) or (ip == target_ip):
                     return self.h.create_image_acquirer(di)
 
