@@ -1,8 +1,5 @@
 # This is an interface that any instrument has to implement.
-
 from abc import ABC, abstractmethod
-
-# ABC means Abstract Base Class and is basically an interface
 
 
 class Instrument(ABC):
@@ -12,16 +9,10 @@ class Instrument(ABC):
 
     @abstractmethod
     def initialize(self):
-        """
-        Initializes the instrument
-        :return:
-        """
+        """Initializes the instrument"""
         pass
 
     @abstractmethod
     def close(self):
-        """
-        Closes the instrument
-        :return:
-        """
+        """Closes the instrument"""
         pass
