@@ -1,0 +1,479 @@
+import ctypes
+import pathlib
+import time
+from typing import Any, Optional, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
+from Instrument import Instrument
+
+CWD = str(pathlib.Path(__file__).resolve().parent)
+DLL_PATH = r"C:\Program Files\Common Files\XenICs\Runtime\xeneth64.dll"
+CAL_PATH = (
+    "C:\\Program Files\\Xeneth\\Calibrations\\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
+)
+
+
+class XenicsError(RuntimeError):
+    """Exception raised for Xenics DLL errors."""
+
+    def __init__(self, code: int, message: str):
+        self.code = code
+        super().__init__(f"[XENICSERROR {code}]: {message}")
+
+
+class XenicsDLL:
+    """Low-level ctypes wrapper for the Xenics camera DLL.
+
+    This class is responsible for:
+    - loading the DLL
+    - defining function signatures
+    - translating error codes into Python exceptions
+    """
+
+    def __init__(self, dll_path: str = DLL_PATH):
+        self._dll_path = dll_path
+        self._dll: Optional[ctypes.CDLL] = None
+        self._load()
+
+    # DLL loading and binding
+    def _load(self) -> None:
+        """Load the DLL and bind all functions."""
+        self._dll = ctypes.CDLL(self._dll_path)
+        self._bind_functions()
+
+    def _bind(
+        self,
+        name: str,
+        restype: Any,
+        argtypes: Optional[Tuple[Any, ...]] = None,
+    ) -> None:
+        """Bind a function from the DLL.
+
+        Parameters
+        ----------
+        name : str
+            Name of the function in the DLL.
+        restype : Any
+            ctypes return type.
+        argtypes : tuple of Any, optional
+            ctypes argument types.
+        """
+        func = getattr(self._dll, name)
+        func.restype = restype
+        if argtypes is not None:
+            func.argtypes = argtypes
+        setattr(self, name, func)
+
+    def _bind_functions(self) -> None:
+        """Bind all required DLL functions."""
+
+        # Camera lifecycle
+        self._bind("XC_OpenCamera", ctypes.c_int32)
+        self._bind("XC_CloseCamera", None, (ctypes.c_int32,))
+        self._bind("XC_IsInitialised", ctypes.c_int32, (ctypes.c_int32,))
+
+        # Error handling
+        self._bind(
+            "XC_ErrorToString",
+            ctypes.c_int32,
+            (ctypes.c_int32, ctypes.c_char_p, ctypes.c_int32),
+        )
+
+        # Capture control
+        self._bind("XC_StartCapture", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_StopCapture", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_IsCapturing", ctypes.c_bool, (ctypes.c_int32,))
+
+        # Frame information
+        self._bind("XC_GetFrameSize", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_GetFrameType", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_GetWidth", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_GetHeight", ctypes.c_ulong, (ctypes.c_int32,))
+        self._bind("XC_GetMaxValue", ctypes.c_ulong, (ctypes.c_int32,))
+
+        # Frame capture
+        self._bind(
+            "XC_GetFrame",
+            ctypes.c_ulong,
+            (
+                ctypes.c_int32,
+                ctypes.c_ulong,
+                ctypes.c_ulong,
+                ctypes.c_void_p,
+                ctypes.c_uint,
+            ),
+        )
+
+        # Data and devices
+        self._bind(
+            "XC_SaveData",
+            ctypes.c_ulong,
+            (ctypes.c_int32, ctypes.c_char_p, ctypes.c_ulong),
+        )
+        self._bind(
+            "XCD_EnumerateDevices",
+            ctypes.c_ulong,
+            (ctypes.c_int32, ctypes.c_uint, ctypes.c_ulong),
+        )
+
+        # Calibration and settings
+        self._bind("XC_LoadCalibration", ctypes.c_ulong)
+        self._bind("XC_LoadSettings", ctypes.c_ulong)
+        self._bind("XC_LoadColourProfile", ctypes.c_ulong, (ctypes.c_char_p,))
+
+        # Property access
+        self._bind("XC_SetPropertyValue", ctypes.c_ulong)
+        self._bind(
+            "XC_GetPropertyValueL",
+            ctypes.c_ulong,
+            (ctypes.c_int32, ctypes.c_char_p, ctypes.POINTER(ctypes.c_ulong)),
+        )
+
+    # Error handling utilities
+    def _error_to_string(self, code: int) -> str:
+        """Convert a DLL error code to a human-readable string."""
+        buffer = ctypes.create_string_buffer(256)
+        self._dll.XC_ErrorToString(code, buffer, len(buffer))
+        return buffer.value.decode("utf-8", errors="replace")
+
+    def _check_error(self, code: int) -> None:
+        """Raise a XenicsError if error code is non-zero."""
+        if code != 0:
+            raise XenicsError(code, self._error_to_string(code))
+
+    # Safe wrappers (public API of the DLL wrapper)
+    def open_camera(self) -> int:
+        handle = self._dll.XC_OpenCamera()
+        if handle < 0:
+            raise XenicsError(handle, "Failed to open camera")
+        return handle
+
+    def close_camera(self, handle: int) -> None:
+        self._dll.XC_CloseCamera(handle)
+
+    def start_capture(self, handle: int) -> None:
+        self._check_error(self._dll.XC_StartCapture(handle))
+
+    def stop_capture(self, handle: int) -> None:
+        self._check_error(self._dll.XC_StopCapture(handle))
+
+    def get_frame(
+        self,
+        handle: int,
+        frame_number: int,
+        buffer_size: int,
+        buffer_ptr: ctypes.c_void_p,
+        timeout_ms: int,
+    ) -> None:
+        self._check_error(
+            self._dll.XC_GetFrame(
+                handle,
+                frame_number,
+                buffer_size,
+                buffer_ptr,
+                timeout_ms,
+            )
+        )
+
+    def load_calibration(self) -> None:
+        self._check_error(self._dll.XC_LoadCalibration())
+
+    def load_settings(self) -> None:
+        self._check_error(self._dll.XC_LoadSettings())
+
+
+class Xenics(Instrument):
+
+    def __init__(self, url: str = "cam://0", dll: XenicsDLL = XenicsDLL()):
+        super().__init__()
+
+        self._cam: int | None = None
+        self._url: str = url
+
+        # Status
+        self._is_open = False
+        self._is_capturing = False
+
+        # Load the SDK
+        self._dll: XenicsDLL = dll
+        self._calibration_file: str | None = None
+        self._settings_file: str | None = None
+
+    @property
+    def url(self) -> str:
+        """Camera URL.
+
+        Returns
+        -------
+        str
+            Camera URL path.
+        """
+        return self._url
+
+    @property
+    def cam(self) -> int:
+        """Xenics Cam.
+
+        Returns
+        -------
+        int
+            Xenics device key-identifier for the connected cam.
+        """
+        return self._cam
+
+    @property
+    def calibration_file(self) -> str:
+        """Calibration file path.
+
+        Returns
+        -------
+        str
+            Path to the calibration file.
+        """
+        return self._calibration_file
+
+    @calibration_file.setter
+    def calibration_file(self, value: str) -> None:
+        """Set calibration file path.
+
+        Parameters
+        ----------
+        value : str
+            Path to the calibration file.
+        """
+        self._calibration_file = value
+
+    @property
+    def settings_file(self) -> str:
+        """Settings file path.
+
+        Returns
+        -------
+        str
+            Path to the settings file.
+        """
+        return self._settings_file
+
+    @settings_file.setter
+    def settings_file(self, value: str) -> None:
+        """Set settings file path.
+
+        Parameters
+        ----------
+        value : str
+            Path to the settings file.
+        """
+        self._settings_file = value
+
+    def _require_open(self):
+        """Check that camera is open."""
+        if not self._is_open or self._cam is None:
+            raise RuntimeError("Camera is not open.")
+
+    def _require_capturing(self):
+        """Check that camera is capturing."""
+        if not self._is_capturing or self._cam is None:
+            raise RuntimeError("Camera is not capturing.")
+
+    def open(self) -> None:
+        """Open the camera connection."""
+        if self._is_open:
+            return
+
+        handle = self._dll.open_camera()
+        if handle is 0:
+            raise Exception("Xenics handle is NULL")
+
+        if not self._dll.XC_IsInitialised(handle):
+            self._dll.close_camera(handle)
+            raise XenicsError(
+                code=-1,
+                message="Camera initialization failed after opening",
+            )
+
+        self._cam = handle
+        self._is_open = True
+
+    def close(self) -> None:
+        """Stop capture (if running) and close the camera."""
+        if not self._is_open:
+            return
+
+        try:
+            if self._is_capturing:
+                self._dll.stop_capture(self._cam)
+                self._is_capturing = False
+
+        except BaseException:
+            print("Something went wrong closing the camera.")
+            raise
+
+        finally:
+            self._dll.close_camera(self._cam)
+            self._cam = None
+            self._is_open = False
+
+    def start(self) -> None:
+        """Start frame acquisition."""
+        self._require_open()
+
+        if self._is_capturing:
+            return
+
+        self._dll.start_capture(self._cam)
+        self._is_capturing = True
+
+    def stop(self) -> None:
+        """Stop frame acquisition."""
+        self._require_open()
+
+        if not self._is_capturing:
+            return
+
+        self._dll.stop_capture(self._cam)
+        self._is_capturing = False
+
+    def connect(self) -> None:
+        """
+        Initializes the instrument
+        :return:
+        """
+
+        self.open()
+        self.start()
+        return None
+
+    @property
+    def frame_size(self) -> int:
+        """Return the frame size in bytes.
+
+        Returns
+        -------
+        int
+            Frame size in bytes.
+        """
+        self._require_open()
+        return int(self._dll.XC_GetFrameSize(self._cam))
+
+    @property
+    def frame_dims(self) -> tuple[int, int]:
+        """Return frame dimensions.
+
+        Returns
+        -------
+        tuple of int
+            Frame dimensions as (height, width).
+        """
+        self._require_open()
+
+        width = int(self._dll.XC_GetWidth(self._cam))
+        height = int(self._dll.XC_GetHeight(self._cam))
+
+        return height, width
+
+    @property
+    def frame_type(self) -> int:
+        """Return the camera frame type enumeration.
+
+        Returns
+        -------
+        int
+            Frame type enumeration.
+        """
+        self._require_open()
+        return int(self._dll.XC_GetFrameType(self._cam))
+
+    @property
+    def pixel_size(self) -> int:
+        """Return the pixel size in bytes.
+
+        Returns
+        -------
+        int
+            Number of bytes per pixel.
+
+        Raises
+        ------
+        XenicsError
+            If the frame type is unsupported.
+        """
+        frame_type = self.frame_type
+
+        pixel_sizes = {
+            -1: 0,  # UNKNOWN
+            0: 0,  # NATIVE
+            1: 1,  # 8 BPP GRAY
+            2: 2,  # 16 BPP GRAY
+            3: 4,  # 32 BPP GRAY
+            4: 4,  # RGBA
+            5: 4,  # RGB
+            6: 4,  # BGRA
+            7: 4,  # BGR
+        }
+
+        try:
+            return pixel_sizes[frame_type]
+        except KeyError:
+            raise XenicsError(
+                code=frame_type,
+                message=f"Unsupported frame type {frame_type}",
+            )
+
+    def grab_frame(self, filename: str):
+        """Acquire a single frame and save it to disk.
+
+        Parameters
+        ----------
+        filename : str
+            Output image filename.
+
+        Returns
+        -------
+        numpy.ndarray
+            Acquired frame as a NumPy array.
+
+        Raises
+        ------
+        XenicsError
+            If acquisition fails.
+        """
+
+        self._require_capturing()
+
+        frame_size = self.get_frame_size()
+        height, width = self.get_frame_dims()
+        pixel_dtype = self.get_pixel_dtype()
+        pixel_size = self.get_pixel_size()
+
+        buffer = (ctypes.c_uint8 * frame_size)()
+
+        self._dll.get_frame(
+            handle=self._cam,
+            frame_number=0,
+            buffer_size=frame_size,
+            buffer_ptr=ctypes.cast(buffer, ctypes.c_void_p),
+            timeout_ms=1000,
+        )
+
+        frame = np.frombuffer(
+            buffer,
+            dtype=pixel_dtype,
+            count=frame_size // pixel_size,
+        ).reshape((height, width))
+
+        Image.fromarray(frame).save(filename)
+        return frame
+
+
+if __name__ == "__main__":
+
+    camera = Xenics(url="gev://192.168.1.11")
+    camera.connect()
+    time.sleep(1)
+    im = camera.grab_frame("trial_w_settings.png")
+    plt.imshow(im)
+    plt.show()
+    camera.close()

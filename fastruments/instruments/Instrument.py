@@ -8,11 +8,11 @@ class Instrument(ABC):
         super().__init__()
 
     @abstractmethod
-    def initialize(self):
-        """Initializes the instrument"""
+    def connect(self):
+        """Connect to the instrument"""
         pass
 
     @abstractmethod
     def close(self):
-        """Closes the instrument"""
+        """Close connection with the instrument"""
         pass
