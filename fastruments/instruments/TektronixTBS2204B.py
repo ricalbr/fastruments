@@ -1048,6 +1048,7 @@ class TBS2204B:
             print(f"[TBS2204B] Record length is {length} points.")
         return length
 
+
 if __name__ == "__main__":
 
     import matplotlib.pyplot as plt

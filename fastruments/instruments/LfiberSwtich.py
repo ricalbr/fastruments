@@ -336,6 +336,7 @@ class FiberSwitch:
             print(f"[LF_OSW] Current channel: {channel:02d}.")
         return channel
 
+
 if __name__ == "__main__":
 
     osw = FiberSwitch("ASRL3::INSTR", switching_delay=0.1, verbose=True)
