@@ -1,15 +1,6 @@
 # Python Setup on Windows (with Spyder)
 
-This tutorial provides a step-by-step guide to installing Python on a fresh Windows system, creating a clean development environment, and configuring Spyder to use a custom Python interpreter.
-It is intended for scientific, engineering, and laboratory applications where reproducibility and dependency isolation are important.
-
----
-
-## Prerequisites
-
-- Windows 10 or newer
-- Administrator rights (recommended)
-- Internet connection
+This tutorial provides a step-by-step guide to installing Python on a Windows system, creating a virtual environment, and configuring Spyder to use a custom Python interpreter.
 
 ---
 
@@ -40,7 +31,7 @@ The `pip` tool is part of the Python standard distribution and is documented her
 
 ## 2. Identify the Active Python Interpreter
 
-On Windows type the following command on the Command Prompt or PowerShell
+Type the following command on the Command Prompt or PowerShell
 
 ```bash
 where python
@@ -96,13 +87,11 @@ The kernel provides the communication layer between Spyder and the selected inte
 
 1. Launch **Spyder**.
 2. Go to:
-
    ```
    Tools → Preferences → Python Interpreter
    ```
 3. Select **Use the following Python interpreter**.
 4. Set the interpreter path to:
-
    ```
    C:\venvs\myenv\Scripts\python.exe
    ```
@@ -113,26 +102,8 @@ Spyder will now execute code using the selected environment.
 
 ---
 
-## 6. Useful Standard Library Modules
+## 6. Best Practices
 
-The Python Standard Library provides many tools commonly used in scientific and automation workflows:
-
-* `sys` – interpreter information and runtime configuration
-  [https://docs.python.org/3/library/sys.html](https://docs.python.org/3/library/sys.html)
-* `os` – operating system interfaces (paths, environment variables)
-  [https://docs.python.org/3/library/os.html](https://docs.python.org/3/library/os.html)
-* `pathlib` – object-oriented filesystem paths
-  [https://docs.python.org/3/library/pathlib.html](https://docs.python.org/3/library/pathlib.html)
-* `subprocess` – spawning and controlling external processes
-  [https://docs.python.org/3/library/subprocess.html](https://docs.python.org/3/library/subprocess.html)
-* `logging` – flexible logging framework
-  [https://docs.python.org/3/library/logging.html](https://docs.python.org/3/library/logging.html)
-
----
-
-## 7. Best Practices
-
-* Use one virtual environment per project.
 * Avoid installing packages in the system-wide Python.
 * Keep Python and dependency versions documented.
 * Always verify the active interpreter when working with multiple installations.
@@ -144,7 +115,6 @@ The Python Standard Library provides many tools commonly used in scientific and 
 
 * If Spyder cannot start the kernel, check the installed `spyder-kernels` version.
 * If the wrong Python interpreter is used, inspect:
-
   ```bash
   where python
   ```
