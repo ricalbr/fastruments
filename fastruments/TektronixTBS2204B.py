@@ -946,9 +946,8 @@ class TBS2204B:
         y = (raw - yoff) * ymult + yzero  # Convert to voltage
         xincr = float(self.inst.query(":WFMO:XINCR?"))  # Get X parameters
         xzero = float(self.inst.query(":WFMO:XZERO?"))
-        xref = float(self.inst.query(":WFMO:PT_OFF?"))
         n = len(raw)  # Convert to time
-        x = (np.arange(n) - xref) * xincr + xzero
+        x = np.arange(n) * xincr + xzero
         if self.verbose:
             print(f"[TBS2204B] {n} points downloaded from CH{channel}.")
         return x, y
