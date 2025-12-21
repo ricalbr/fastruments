@@ -214,4 +214,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS Finder files
 .DS_Store
