@@ -16,9 +16,10 @@ Supported models include:
 import time
 
 import pyvisa
+from Instrument import Instrument
 
 
-class FiberSwitch:
+class FiberSwitch(Instrument):
     """
     High-level interface for Lfiber 1xN Optical Fiber Switches.
 
@@ -92,33 +93,13 @@ class FiberSwitch:
         RuntimeError
             If the instrument identification fails or protocol is invalid.
         """
+        self.resource = resource
         self.verbose = verbose
         self.timeout = timeout
         self.switching_delay = switching_delay
         self.model_info = {}
-        try:
-            rm = pyvisa.ResourceManager("@py")
-            self.inst = rm.open_resource(resource)
-            self.inst.timeout = timeout
-            if isinstance(
-                self.inst, pyvisa.resources.SerialInstrument
-            ):  # Configure RS-232 specific parameters as per datasheet
-                self.inst.baud_rate = self.__BAUD_RATE
-                self.inst.data_bits = self.__DATA_BITS
-                self.inst.stop_bits = self.__STOP_BITS
-                self.inst.parity = self.__PARITY
-                self.inst.read_termination = self.__END_CHAR  # Read until '>'
-                self.inst.write_termination = None  # We manually add delimiters
-        except Exception as e:
-            raise ConnectionError(
-                f"[LF_OSW][ERROR] Could not connect to optical switch: {e}."
-            )
-        try:
-            self.__update_info(self.idn())
-            if self.verbose:
-                print("[LF_OSW] Connected successfully.")
-        except Exception as e:
-            raise RuntimeError(f"[LF_OSW][ERROR] Failed to query IDN: {e}.")
+        
+        self.connect()
 
     # ------------------------------------------------------------------
     # Internal protocol helpers
@@ -200,7 +181,32 @@ class FiberSwitch:
 
     # ------------------------------------------------------------------
     # General communication and status
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------------    
+    def connect(self) -> None:
+        try:
+            rm = pyvisa.ResourceManager("@py")
+            self.inst = rm.open_resource(self.resource)
+            self.inst.timeout = self.timeout
+            if isinstance(
+                self.inst, pyvisa.resources.SerialInstrument
+            ):  # Configure RS-232 specific parameters as per datasheet
+                self.inst.baud_rate = self.__BAUD_RATE
+                self.inst.data_bits = self.__DATA_BITS
+                self.inst.stop_bits = self.__STOP_BITS
+                self.inst.parity = self.__PARITY
+                self.inst.read_termination = self.__END_CHAR  # Read until '>'
+                self.inst.write_termination = None  # We manually add delimiters
+        except Exception as e:
+            raise ConnectionError(
+                f"[LF_OSW][ERROR] Could not connect to optical switch: {e}."
+            )
+        try:
+            self.__update_info(self.idn())
+            if self.verbose:
+                print("[LF_OSW] Connected successfully.")
+        except Exception as e:
+            raise RuntimeError(f"[LF_OSW][ERROR] Failed to query IDN: {e}.")
+            
     def idn(self) -> str:
         """
         Query the instrument identification string.
@@ -348,5 +354,6 @@ if __name__ == "__main__":
     # Channel control
     osw.get_channel()
     osw.set_channel(5)
+    osw.get_channel()
 
     osw.close()

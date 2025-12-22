@@ -16,9 +16,10 @@ from typing import List, Optional, Sequence, Union
 
 import numpy as np
 import qontrol
+from Instrument import Instrument
 
 
-class Q8iv:
+class Q8iv(Instrument):
     """
     High-level interface for Qontrol Q8iv current/voltage driver boards.
 
@@ -105,11 +106,9 @@ class Q8iv:
             If init_mode or compliance values are invalid.
         """
         self.verbose = verbose
-        # Connect low-level interface
-        try:
-            self._q = qontrol.QXOutput(serial_port_name=resource, response_timeout=0.1)
-        except Exception as e:
-            raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
+        self.resource = resource
+        self.connect()
+        
         # Detect channel count
         try:
             self.__num_channels = len(self._q.i)
@@ -142,7 +141,14 @@ class Q8iv:
                 f"[Q8iv] Initialised Qontrol in {self._init_mode!r} mode with "
                 f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
             )
-
+            
+    def connect(self) -> None:
+        # Connect low-level interface
+        try:
+            self._q = qontrol.QXOutput(serial_port_name=self.resource, response_timeout=0.1)
+        except Exception as e:
+            raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
+            
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -384,14 +390,14 @@ class Q8iv:
 
 if __name__ == "__main__":
 
-    drv = Q8iv("COM3", init_mode="i", transient=0.2, verbose=True)
+    drv = Q8iv("COM4", init_mode="v", transient=0.2, verbose=True)
 
     # General compliance and status
     drv.set_compliance(current=24.0, voltage=12.0)
 
     # Core I/V operations
-    drv.set_current(0, 5.0)
-    drv.set_current([1, 2], [3.0, 7.5])
+    # drv.set_current(0, 5.0)
+    # drv.set_current([1, 2], [3.0, 7.5])
     drv.get_current([0, 1, 2])
     drv.get_voltage([0, 1, 2])
     drv.set_all_zero()
