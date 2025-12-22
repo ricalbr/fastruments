@@ -17,9 +17,10 @@ in photonic and electronic testing setups.
 """
 
 import pyvisa
+from Instrument import Instrument
 
 
-class AFG3011C:
+class AFG3011C(Instrument):
     """
     High-level interface for the Tektronix AFG3011C Function Generator.
 
@@ -96,10 +97,17 @@ class AFG3011C:
         """
         self.verbose = verbose
         self.timeout = timeout
+        self.resource = resource
+        self.connect()
+
+    # ------------------------------------------------------------------
+    # General communication and status
+    # ------------------------------------------------------------------
+    def connect(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
-            self.inst = rm.open_resource(resource)
-            self.inst.timeout = timeout
+            self.inst = rm.open_resource(self.resource)
+            self.inst.timeout = self.timeout
         except Exception as e:
             raise ConnectionError(
                 f"[AFG3011C][ERROR] Could not connect to function generator: {e}"
@@ -110,10 +118,7 @@ class AFG3011C:
                 print("[AFG3011C] Connected successfully.")
         except Exception as e:
             raise RuntimeError(f"[AFG3011C][ERROR] Failed to query IDN: {e}")
-
-    # ------------------------------------------------------------------
-    # General communication and status
-    # ------------------------------------------------------------------
+            
     def idn(self) -> str:
         """
         Query the instrument identification string.

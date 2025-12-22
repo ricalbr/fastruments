@@ -16,9 +16,10 @@ and optoelectronic experiments.
 
 import numpy as np
 import pyvisa
+from Instrument import Instrument
 
 
-class TBS2204B:
+class TBS2204B(Instrument):
     """
     High-level interface for Tektronix TBS2204B Digital Oscilloscope.
 
@@ -169,10 +170,17 @@ class TBS2204B:
         """
         self.verbose = verbose
         self.timeout = timeout
+        self.resource = resource
+        self.connect()
+
+    # ------------------------------------------------------------------
+    # General communication and status
+    # ------------------------------------------------------------------
+    def connect(self) -> None:
         try:
             rm = pyvisa.ResourceManager()
-            self.inst = rm.open_resource(resource)
-            self.inst.timeout = timeout
+            self.inst = rm.open_resource(self.resource)
+            self.inst.timeout = self.timeout
         except Exception as e:
             raise ConnectionError(
                 f"[TBS2204B][ERROR] Could not connect to oscilloscope: {e}"
@@ -184,9 +192,6 @@ class TBS2204B:
         except Exception as e:
             raise RuntimeError(f"[TBS2204B][ERROR] Failed to query IDN: {e}")
 
-    # ------------------------------------------------------------------
-    # General communication and status
-    # ------------------------------------------------------------------
     def idn(self) -> str:
         """
         Query the oscilloscope identification string.
