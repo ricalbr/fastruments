@@ -12,9 +12,7 @@ from Instrument import Instrument
 
 CWD = str(pathlib.Path(__file__).resolve().parent)
 DLL_PATH = pathlib.Path(__file__).resolve().parent / "dll" / "xeneth64.dll"
-CAL_PATH = (
-    r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
-)
+CAL_PATH = r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
 
 
 class XenicsError(RuntimeError):
@@ -236,7 +234,7 @@ class Xenics(Instrument):
         return self._calibration_file
 
     @calibration_file.setter
-    def calibration_file(self, filepath: str) -> None:
+    def calibration_file(self, filepath: str| None) -> None:
         """Set calibration file path.
 
         Parameters
@@ -244,8 +242,10 @@ class Xenics(Instrument):
         filepath : str
             Path to the calibration file.
         """
+        if filepath is None:
+            return
         self._calibration_file = filepath
-        # TODO: load file
+        self.load_calibration(filepath)
 
     @property
     def settings_file(self) -> str:
@@ -259,7 +259,7 @@ class Xenics(Instrument):
         return self._settings_file
 
     @settings_file.setter
-    def settings_file(self, filepath: str) -> None:
+    def settings_file(self, filepath: str| None) -> None:
         """Set settings file path.
 
         Parameters
@@ -267,8 +267,10 @@ class Xenics(Instrument):
         filepath : str
             Path to the settings file.
         """
+        if filepath is None:
+            return
         self._settings_file = filepath
-        # TODO: load file
+        self.load_settings(filepath)
 
     @property
     def frame_size(self) -> int:
@@ -356,21 +358,27 @@ class Xenics(Instrument):
         if not self._is_capturing or self._cam is None:
             raise RuntimeError("Camera is not capturing.")
 
+    def connect(self) -> None:
+        """
+        Initializes the instrument
+        :return:
+        """
+        self.open()
+        self.load_calibration()
+        self.load_settings()
+        self.start_capture()
+
     def open(self) -> None:
         """Open the camera connection."""
         if self._is_open:
             return
 
-        handle = self._dll.XC_OpenCamera(self._url.encode("utf-8"))
+        handle = self._dll.XC_OpenCamera(self._url.encode("utf-8"), 0, 0)
         if handle == 0:
-            raise Exception("Xenics handle is NULL")
+            raise Exception("Xenics handle is NULL.")
 
         if not self._dll.XC_IsInitialised(handle):
-            self._dll.close_camera(handle)
-            raise XenicsError(
-                code=-1,
-                message="Camera initialization failed after opening",
-            )
+            raise XenicsError(code=-1, message="Camera initialization failed after opening.")
 
         self._cam = handle
         self._is_open = True
@@ -414,36 +422,21 @@ class Xenics(Instrument):
         self._dll._check_error(self._dll.XC_StopCapture(self._cam))
         self._is_capturing = False
 
-    def connect(self) -> None:
-        """
-        Initializes the instrument
-        :return:
-        """
-
-        self.open()
-        # TODO: load settings
-        # TODO: load calibration
-        self.start_capture()
-        return None
-
-    def load_calibration(self, filename:str|None = None, **kwargs) -> None:
-        fname = filename if filename is not None else self.calibration_file
-        self._dll._check_error(self._dll.XC_LoadCalibration(self._cam, str(fname).encode(), **kwargs))
+    def load_calibration(self, filename:str|None = None) -> None:
+        fname = filename if filename is not None else self._calibration_file
+        if fname is None:
+            # LOG no calibration loaded.
+        else:
+            flag = 1 # Use software correction
+            self._dll._check_error(self._dll.XC_LoadCalibration(self._cam, str(fname).encode(), flag))
 
     def load_settings(self, filename:str|None = None) -> None:
         fname = filename if filename is not None else self.settings_file
-        self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode()))
-
-    def get_pixel_dtype(self):
-        bytes_in_pixel = self.pixel_size
-        conversions = (None, np.uint8, np.uint16, None, np.uint32)
-        try:
-            pixel_dtype = conversions[bytes_in_pixel]
-        except BaseException:
-            raise Exception("Unsupported pixel size %s" % str(bytes_in_pixel))
-        if conversions is None:
-            raise Exception("Unsupported pixel size %s" % str(bytes_in_pixel))
-        return pixel_dtype
+        if fname is None:
+            # LOG no setting loaded.
+        else:
+            flag = 1  # Ignore settings that do not affect the image
+            self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode(), flag))
 
     def grab_frame(self, filename: str):
         """Acquire a single frame and save it to disk.
@@ -484,6 +477,17 @@ class Xenics(Instrument):
 
         Image.fromarray(frame).save(filename)
         return frame
+
+    def get_pixel_dtype(self):
+        bytes_in_pixel = self.pixel_size
+        conversions = (None, np.uint8, np.uint16, None, np.uint32)
+        try:
+            pixel_dtype = conversions[bytes_in_pixel]
+        except BaseException:
+            raise Exception("Unsupported pixel size %s" % str(bytes_in_pixel))
+        if conversions is None:
+            raise Exception("Unsupported pixel size %s" % str(bytes_in_pixel))
+        return pixel_dtype
 
 
 if __name__ == "__main__":
