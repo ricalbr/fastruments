@@ -12,7 +12,7 @@ import os
 from Instrument import Instrument
 
 CWD = pathlib.Path(__file__).resolve().parent
-os.add_dll_directory(CWD / "dll")
+os.add_dll_directory(CWD)
 DLL_NAME = "xeneth64.dll"
 CAL_PATH = r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
 
@@ -34,7 +34,7 @@ class XenicsDLL:
     - translating error codes into Python exceptions
     """
 
-    def __init__(self, dll_name str | pathlib.Path = DLL_NAME):
+    def __init__(self, dll_name: str | pathlib.Path = DLL_NAME):
         self._dll_name = dll_name
         self._dll: Optional[ctypes.CDLL] = None
         self._load()
@@ -428,6 +428,7 @@ class Xenics(Instrument):
         fname = filename if filename is not None else self._calibration_file
         if fname is None:
             # LOG no calibration loaded.
+            return
         else:
             flag = 1 # Use software correction
             self._dll._check_error(self._dll.XC_LoadCalibration(self._cam, str(fname).encode(), flag))
@@ -436,6 +437,7 @@ class Xenics(Instrument):
         fname = filename if filename is not None else self.settings_file
         if fname is None:
             # LOG no setting loaded.
+            return
         else:
             flag = 1  # Ignore settings that do not affect the image
             self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode(), flag))
