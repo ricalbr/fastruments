@@ -6,11 +6,12 @@ from typing import Any, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
+import pathlib
 
 from Instrument import Instrument
 
 CWD = str(pathlib.Path(__file__).resolve().parent)
-DLL_PATH = r"C:\Program Files\Common Files\XenICs\Runtime\xeneth64.dll"
+DLL_PATH = pathlib.Path(__file__).resolve().parent / "dll" / "xeneth64.dll"
 CAL_PATH = (
     r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
 )
@@ -33,7 +34,7 @@ class XenicsDLL:
     - translating error codes into Python exceptions
     """
 
-    def __init__(self, dll_path: str = DLL_PATH):
+    def __init__(self, dll_path: str | pathlib.Path = DLL_PATH):
         self._dll_path = dll_path
         self._dll: Optional[ctypes.CDLL] = None
         self._load()
@@ -151,14 +152,7 @@ class XenicsDLL:
             raise XenicsError(handle, "Failed to open camera")
         return handle
 
-    def close_camera(self, handle: int) -> None:
-        self._dll.XC_CloseCamera(handle)
 
-    def start_capture(self, handle: int) -> None:
-        self._check_error(self._dll.XC_StartCapture(handle))
-
-    def stop_capture(self, handle: int) -> None:
-        self._check_error(self._dll.XC_StopCapture(handle))
 
     def get_frame(
         self,
@@ -276,16 +270,6 @@ class Xenics(Instrument):
         self._settings_file = filepath
         # TODO: load file
 
-    def _require_open(self):
-        """Check that camera is open."""
-        if not self._is_open or self._cam is None:
-            raise RuntimeError("Camera is not open.")
-
-    def _require_capturing(self):
-        """Check that camera is capturing."""
-        if not self._is_capturing or self._cam is None:
-            raise RuntimeError("Camera is not capturing.")
-
     @property
     def frame_size(self) -> int:
         """Return the frame size in bytes.
@@ -362,12 +346,22 @@ class Xenics(Instrument):
                 message=f"Unsupported frame type {frame_type}",
             )
 
+    def _require_open(self) -> None:
+        """Check that camera is open."""
+        if not self._is_open or self._cam is None:
+            raise RuntimeError("Camera is not open.")
+
+    def _require_capturing(self) -> None:
+        """Check that camera is capturing."""
+        if not self._is_capturing or self._cam is None:
+            raise RuntimeError("Camera is not capturing.")
+
     def open(self) -> None:
         """Open the camera connection."""
         if self._is_open:
             return
 
-        handle = self._dll.open_camera(self._url.encode("utf-8"))
+        handle = self._dll.XC_OpenCamera(self._url.encode("utf-8"))
         if handle == 0:
             raise Exception("Xenics handle is NULL")
 
@@ -388,7 +382,7 @@ class Xenics(Instrument):
 
         try:
             if self._is_capturing:
-                self._dll.stop_capture(self._cam)
+                self.stop_capture()
                 self._is_capturing = False
 
         except BaseException:
@@ -396,28 +390,28 @@ class Xenics(Instrument):
             raise
 
         finally:
-            self._dll.close_camera(self._cam)
+            self._dll.XC_CloseCamera(self._cam)
             self._cam = None
             self._is_open = False
 
-    def start(self) -> None:
+    def start_capture(self) -> None:
         """Start frame acquisition."""
         self._require_open()
 
         if self._is_capturing:
             return
 
-        self._dll.start_capture(self._cam)
+        self._dll._check_error(self._dll.XC_StartCapture(self._cam))
         self._is_capturing = True
 
-    def stop(self) -> None:
+    def stop_capture(self) -> None:
         """Stop frame acquisition."""
         self._require_open()
 
         if not self._is_capturing:
             return
 
-        self._dll.stop_capture(self._cam)
+        self._dll._check_error(self._dll.XC_StopCapture(self._cam))
         self._is_capturing = False
 
     def connect(self) -> None:
@@ -427,8 +421,18 @@ class Xenics(Instrument):
         """
 
         self.open()
-        self.start()
+        # TODO: load settings
+        # TODO: load calibration
+        self.start_capture()
         return None
+
+    def load_calibration(self, filename:str|None = None, **kwargs) -> None:
+        fname = filename if filename is not None else self.calibration_file
+        self._dll._check_error(self._dll.XC_LoadCalibration(self._cam, str(fname).encode(), **kwargs))
+
+    def load_settings(self, filename:str|None = None) -> None:
+        fname = filename if filename is not None else self.settings_file
+        self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode()))
 
     def get_pixel_dtype(self):
         bytes_in_pixel = self.pixel_size
@@ -485,9 +489,8 @@ class Xenics(Instrument):
 if __name__ == "__main__":
 
     camera = Xenics(url="gev://192.168.1.11", calibration_file=CAL_PATH)
-    # TODO: caricare la calibrazione
-    # TODO: caricare le settings
     # TODO: metti profilo NATIVE in BW
+    # TODO: fix dll path and cal files
 
     print(camera.url)
     camera.connect()
