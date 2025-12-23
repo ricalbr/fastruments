@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import pathlib
+import os
 
 from Instrument import Instrument
 
-CWD = str(pathlib.Path(__file__).resolve().parent)
-DLL_PATH = pathlib.Path(__file__).resolve().parent / "dll" / "xeneth64.dll"
+CWD = pathlib.Path(__file__).resolve().parent
+os.add_dll_directory(CWD / "dll")
+DLL_NAME = "xeneth64.dll"
 CAL_PATH = r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
 
 
@@ -32,15 +34,15 @@ class XenicsDLL:
     - translating error codes into Python exceptions
     """
 
-    def __init__(self, dll_path: str | pathlib.Path = DLL_PATH):
-        self._dll_path = dll_path
+    def __init__(self, dll_name str | pathlib.Path = DLL_NAME):
+        self._dll_name = dll_name
         self._dll: Optional[ctypes.CDLL] = None
         self._load()
 
     # DLL loading and binding
     def _load(self) -> None:
         """Load the DLL and bind all functions."""
-        self._dll = ctypes.CDLL(self._dll_path)
+        self._dll = ctypes.CDLL(self._dll_name)
         self._bind_functions()
 
     def _bind(
