@@ -98,7 +98,7 @@ class FiberSwitch(Instrument):
         self.timeout = timeout
         self.switching_delay = switching_delay
         self.model_info = {}
-        
+
         self.connect()
 
     # ------------------------------------------------------------------
@@ -181,7 +181,7 @@ class FiberSwitch(Instrument):
 
     # ------------------------------------------------------------------
     # General communication and status
-    # ------------------------------------------------------------------    
+    # ------------------------------------------------------------------
     def connect(self) -> None:
         try:
             rm = pyvisa.ResourceManager("@py")
@@ -206,7 +206,7 @@ class FiberSwitch(Instrument):
                 print("[LF_OSW] Connected successfully.")
         except Exception as e:
             raise RuntimeError(f"[LF_OSW][ERROR] Failed to query IDN: {e}.")
-            
+
     def idn(self) -> str:
         """
         Query the instrument identification string.

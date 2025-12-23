@@ -118,7 +118,7 @@ class AFG3011C(Instrument):
                 print("[AFG3011C] Connected successfully.")
         except Exception as e:
             raise RuntimeError(f"[AFG3011C][ERROR] Failed to query IDN: {e}")
-            
+
     def idn(self) -> str:
         """
         Query the instrument identification string.

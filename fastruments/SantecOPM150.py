@@ -20,8 +20,18 @@ import math
 import os
 import sys
 import time
-from ctypes import (POINTER, byref, c_bool, c_byte, c_char_p, c_double, c_int,
-                    c_uint16, c_uint64, cdll)
+from ctypes import (
+    POINTER,
+    byref,
+    c_bool,
+    c_byte,
+    c_char_p,
+    c_double,
+    c_int,
+    c_uint16,
+    c_uint64,
+    cdll,
+)
 from enum import Enum
 from typing import Literal, Optional
 

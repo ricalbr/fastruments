@@ -108,7 +108,7 @@ class Q8iv(Instrument):
         self.verbose = verbose
         self.resource = resource
         self.connect()
-        
+
         # Detect channel count
         try:
             self.__num_channels = len(self._q.i)
@@ -141,14 +141,16 @@ class Q8iv(Instrument):
                 f"[Q8iv] Initialised Qontrol in {self._init_mode!r} mode with "
                 f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
             )
-            
+
     def connect(self) -> None:
         # Connect low-level interface
         try:
-            self._q = qontrol.QXOutput(serial_port_name=self.resource, response_timeout=0.1)
+            self._q = qontrol.QXOutput(
+                serial_port_name=self.resource, response_timeout=0.1
+            )
         except Exception as e:
             raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
-            
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------

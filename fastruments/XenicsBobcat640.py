@@ -11,7 +11,9 @@ from Instrument import Instrument
 
 CWD = str(pathlib.Path(__file__).resolve().parent)
 DLL_PATH = r"C:\Program Files\Common Files\XenICs\Runtime\xeneth64.dll"
-CAL_PATH = r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
+CAL_PATH = (
+    r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
+)
 
 
 class XenicsError(RuntimeError):
@@ -185,7 +187,13 @@ class XenicsDLL:
 
 class Xenics(Instrument):
 
-    def __init__(self, url: str = "cam://0", dll: XenicsDLL = XenicsDLL(), calibration_file: str|None = None, settings_file: str|None = None):
+    def __init__(
+        self,
+        url: str = "cam://0",
+        dll: XenicsDLL = XenicsDLL(),
+        calibration_file: str | None = None,
+        settings_file: str | None = None,
+    ):
         super().__init__()
 
         self._cam: int | None = None
@@ -266,7 +274,7 @@ class Xenics(Instrument):
             Path to the settings file.
         """
         self._settings_file = filepath
-        #TODO: load file
+        # TODO: load file
 
     def _require_open(self):
         """Check that camera is open."""
@@ -362,7 +370,7 @@ class Xenics(Instrument):
         handle = self._dll.open_camera(self._url.encode("utf-8"))
         if handle == 0:
             raise Exception("Xenics handle is NULL")
-        
+
         if not self._dll.XC_IsInitialised(handle):
             self._dll.close_camera(handle)
             raise XenicsError(
@@ -432,7 +440,7 @@ class Xenics(Instrument):
         if conversions is None:
             raise Exception("Unsupported pixel size %s" % str(bytes_in_pixel))
         return pixel_dtype
-    
+
     def grab_frame(self, filename: str):
         """Acquire a single frame and save it to disk.
 
@@ -460,11 +468,9 @@ class Xenics(Instrument):
         pixel_dtype = self.get_pixel_dtype()
         pixel_size = self.pixel_size
 
-        buffer =  bytes(frame_size)
+        buffer = bytes(frame_size)
 
-        self._dll.get_frame(
-            self._cam, frame_t, 1, buffer, frame_size
-        )
+        self._dll.get_frame(self._cam, frame_t, 1, buffer, frame_size)
 
         frame = np.frombuffer(
             buffer,
@@ -479,10 +485,10 @@ class Xenics(Instrument):
 if __name__ == "__main__":
 
     camera = Xenics(url="gev://192.168.1.11", calibration_file=CAL_PATH)
-    # TODO: caricare la calibrazione 
+    # TODO: caricare la calibrazione
     # TODO: caricare le settings
     # TODO: metti profilo NATIVE in BW
-    
+
     print(camera.url)
     camera.connect()
     time.sleep(1)
