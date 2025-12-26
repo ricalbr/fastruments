@@ -93,7 +93,6 @@ class FiberSwitch(Instrument):
         self.timeout = timeout
         self.switching_delay = switching_delay
         self.model_info = {}
-
         self.connect()
 
     # ------------------------------------------------------------------

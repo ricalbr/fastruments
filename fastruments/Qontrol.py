@@ -32,6 +32,8 @@ class Q8iv(Instrument):
     ----------
     resource : str
         VISA resource string (e.g. ``'COM4'`` for Serial/USB).
+    timeout : float, optional
+        Communication timeout in seconds (default: ``0.1``).
     init_mode : {'i', 'v'}, optional
         Initialization mode: ``'i'`` for current control, ``'v'`` for voltage
         control (default: ``'i'``).
@@ -89,6 +91,7 @@ class Q8iv(Instrument):
     def __init__(
         self,
         resource: str,
+        timeout: float = 0.1,
         init_mode: str = "i",
         imax: float = __IMAX_DEFAULT,
         vmax: float = __VMAX_DEFAULT,
@@ -98,17 +101,12 @@ class Q8iv(Instrument):
         """
         Initialise the Q8iv wrapper and connect to the Qontrol board.
 
-        Raises
-        ------
-        ConnectionError
-            If unable to connect to the device.
-        ValueError
-            If init_mode or compliance values are invalid.
+        See class docstring for detailed parameter descriptions.
         """
         self.verbose = verbose
         self.resource = resource
+        self.timeout = timeout
         self.connect()
-
         # Detect channel count
         try:
             self.__num_channels = len(self._q.i)
@@ -157,7 +155,7 @@ class Q8iv(Instrument):
         """
         try:
             self._q = qontrol.QXOutput(
-                serial_port_name=self.resource, response_timeout=0.1
+                serial_port_name=self.resource, response_timeout=self.timeout
             )
         except Exception as e:
             raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
