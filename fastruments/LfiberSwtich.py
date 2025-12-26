@@ -1,8 +1,8 @@
 """
-Lfiber OPTICAL SWITCHES
+LFIBER OPTICAL FIBER SWITCHES
 
 This module provides a high-level Python interface for controlling Lfiber
-Optical Switches (1xN Series) via RS-232/USB using the PyVISA library.
+fiber switches (1xN Series) via RS-232/USB using the PyVISA library.
 
 It implements the custom ASCII protocol defined in the Lfiber User Manuals,
 supporting channel switching, queries, and automatic parsing of instrument
@@ -21,7 +21,7 @@ from Instrument import Instrument
 
 class FiberSwitch(Instrument):
     """
-    High-level interface for Lfiber 1xN Optical Fiber Switches.
+    High-level interface for Lfiber 1xN fiber switches.
 
     This class handles the custom serial protocol (non-SCPI) used by Lfiber
     switches. It automatically detects the number of channels and fiber characteristics
@@ -84,14 +84,9 @@ class FiberSwitch(Instrument):
         verbose: bool = True,
     ) -> None:
         """
-        Initialize communication with the Lfiber Optical Switch.
+        Initialize communication with the Lfiber Fiber Switch.
 
-        Raises
-        ------
-        ConnectionError
-            If the VISA resource cannot be opened.
-        RuntimeError
-            If the instrument identification fails or protocol is invalid.
+        See class docstring for detailed parameter descriptions.
         """
         self.resource = resource
         self.verbose = verbose
@@ -108,7 +103,7 @@ class FiberSwitch(Instrument):
         """
         Send a framed command to the instrument and return the raw response payload.
 
-        This method implements the low-level ASCII protocol used by Lfiber optical
+        This method implements the low-level ASCII protocol used by Lfiber fiber
         switches. The command is wrapped between the required start and end
         delimiters (`__START_CHAR` and `__END_CHAR`). The instrument replies
         using the same format, and the method extracts and returns only the
@@ -183,6 +178,21 @@ class FiberSwitch(Instrument):
     # General communication and status
     # ------------------------------------------------------------------
     def connect(self) -> None:
+        """
+        Establish the VISA connection and configure serial parameters.
+
+        This method initializes the PyVISA resource manager, opens the 
+        specified resource, and sets the baud rate, parity, and termination 
+        characters required by the Lfiber protocol. It also calls 'idn()' 
+        to populate 'model_info'.
+
+        Raises
+        ------
+        ConnectionError
+            If the VISA resource cannot be opened or configured.
+        RuntimeError
+            If the instrument identification fails during initial contact.
+        """
         try:
             rm = pyvisa.ResourceManager("@py")
             self.inst = rm.open_resource(self.resource)
@@ -198,7 +208,7 @@ class FiberSwitch(Instrument):
                 self.inst.write_termination = None  # We manually add delimiters
         except Exception as e:
             raise ConnectionError(
-                f"[LF_OSW][ERROR] Could not connect to optical switch: {e}."
+                f"[LF_OSW][ERROR] Could not connect to fiber switch: {e}."
             )
         try:
             self.__update_info(self.idn())
@@ -234,11 +244,11 @@ class FiberSwitch(Instrument):
 
     def reset(self) -> None:
         """
-        Reset the optical switch (sets to channel 00).
+        Reset the fiber switch (sets to channel 00).
 
         Notes
         ------
-        Reset means that the input is not connected through one of the optical
+        Reset means that the input is not connected through one of the fiber
         switch output channels.
 
         Raises
@@ -279,7 +289,7 @@ class FiberSwitch(Instrument):
     # ------------------------------------------------------------------
     def set_channel(self, channel: int) -> None:
         """
-        Switch the optical path to the specified channel.
+        Switch the fiber path to the specified channel.
 
         Parameters
         ----------

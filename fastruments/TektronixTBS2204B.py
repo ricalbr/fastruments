@@ -161,12 +161,7 @@ class TBS2204B(Instrument):
         """
         Initialize connection to the Tektronix TBS2204B oscilloscope.
 
-        Raises
-        ------
-        ConnectionError
-            If the VISA resource cannot be opened.
-        RuntimeError
-            If querying the instrument identification (IDN) fails.
+        See class docstring for detailed parameter descriptions.
         """
         self.verbose = verbose
         self.timeout = timeout
@@ -177,6 +172,21 @@ class TBS2204B(Instrument):
     # General communication and status
     # ------------------------------------------------------------------
     def connect(self) -> None:
+        """
+        Establish the VISA connection with the oscilloscope.
+
+        This method initializes the VISA Resource Manager, opens the USB
+        connection to the instrument, and configures the communication 
+        timeout. It also performs an identification query to ensure 
+        the instrument is responsive.
+
+        Raises
+        ------
+        ConnectionError
+            If the VISA resource cannot be opened.
+        RuntimeError
+            If the instrument fails to respond to the identification query.
+        """
         try:
             rm = pyvisa.ResourceManager()
             self.inst = rm.open_resource(self.resource)

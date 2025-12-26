@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Wed Nov 12 21:45:00 2025
-
-@author: Francesco Ceccarelli
+TEKTRONIX AFG3000
 
 This module provides a high-level Python interface for controlling Tektronix
 AFG3011C function generators via USB using the PyVISA library.
@@ -88,12 +84,7 @@ class AFG3011C(Instrument):
         """
         Initialize communication with the Tektronix AFG3011C instrument.
 
-        Raises
-        ------
-        ConnectionError
-            If the VISA resource cannot be opened.
-        RuntimeError
-            If querying the instrument identification (IDN) fails.
+        See class docstring for detailed parameter descriptions.
         """
         self.verbose = verbose
         self.timeout = timeout
@@ -104,6 +95,20 @@ class AFG3011C(Instrument):
     # General communication and status
     # ------------------------------------------------------------------
     def connect(self) -> None:
+        """
+        Establish the VISA connection with the function generator.
+
+        This method initializes the VISA Resource Manager, opens the USB 
+        resource, and sets the communication timeout. It also performs an 
+        initial identification query to verify the connection.
+
+        Raises
+        ------
+        ConnectionError
+            If the VISA resource cannot be opened.
+        RuntimeError
+            If the instrument fails to respond to the identification query.
+        """
         try:
             rm = pyvisa.ResourceManager()
             self.inst = rm.open_resource(self.resource)

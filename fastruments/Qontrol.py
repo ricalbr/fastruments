@@ -143,7 +143,18 @@ class Q8iv(Instrument):
             )
 
     def connect(self) -> None:
-        # Connect low-level interface
+        """
+        Establish the low-level communication with the Qontrol board.
+
+        This method initializes the `qontrol.QXOutput` interface using the 
+        provided serial port resource and sets a default response timeout.
+
+        Raises
+        ------
+        ConnectionError
+            If the Qontrol low-level driver fails to initialize or if the 
+            serial port is inaccessible.
+        """
         try:
             self._q = qontrol.QXOutput(
                 serial_port_name=self.resource, response_timeout=0.1
@@ -269,8 +280,11 @@ class Q8iv(Instrument):
         chans = [int(c) for c in self.__to_list(channel)]
         for ch in chans:
             self.__validate_channel(ch)
-        return [float(self._q.i[ch]) for ch in chans]
-
+        values = [float(self._q.i[ch]) for ch in chans]       
+        if self.verbose:
+            print(f"[Q8iv] Current on channel {chans}: {values} mA.")         
+        return values   
+    
     def set_voltage(
         self, channel: Union[int, Sequence[int]], voltage: Union[float, Sequence[float]]
     ) -> None:
@@ -309,7 +323,10 @@ class Q8iv(Instrument):
         chans = [int(c) for c in self.__to_list(channel)]
         for ch in chans:
             self.__validate_channel(ch)
-        return [float(self._q.v[ch]) for ch in chans]
+        values = [float(self._q.v[ch]) for ch in chans]        
+        if self.verbose:
+            print(f"[Q8iv] Voltage on channel {chans}: {values} V.")   
+        return values
 
     # ------------------------------------------------------------------
     # Utility operations
@@ -392,14 +409,14 @@ class Q8iv(Instrument):
 
 if __name__ == "__main__":
 
-    drv = Q8iv("COM4", init_mode="v", transient=0.2, verbose=True)
+    drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
 
     # General compliance and status
     drv.set_compliance(current=24.0, voltage=12.0)
 
     # Core I/V operations
-    # drv.set_current(0, 5.0)
-    # drv.set_current([1, 2], [3.0, 7.5])
+    drv.set_current(0, 5.0)
+    drv.set_current([1, 2], [3.0, 7.5])
     drv.get_current([0, 1, 2])
     drv.get_voltage([0, 1, 2])
     drv.set_all_zero()
