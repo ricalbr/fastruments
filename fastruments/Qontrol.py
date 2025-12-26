@@ -70,7 +70,7 @@ class Q8iv(Instrument):
     Examples
     --------
     >>> from fastruments.Qontrol import Q8iv
-    >>> drv = Qontrol('COM4', init_mode='i', verbose=True)
+    >>> drv = Q8iv('COM4', init_mode='i', verbose=True)
     [Q8iv] Initialised Qontrol in 'i' mode with 8 channels. imax=24.0 mA, vmax=12.0 V.
     >>> drv.set_current(0, 5.0)      # Set channel 0 to 5 mA
     [Q8iv] Setting channel 0 to 5 mA.
@@ -282,6 +282,12 @@ class Q8iv(Instrument):
         -----
         Before closing, all outputs are automatically set to zero. Should always
         be called before program termination to release the COM resource.
+        
+        Raises
+        ------
+        RuntimeError
+            If the low-level close operation fails.
+            If an error occurs during the shutdown sequence.
         """
         try:
             if self._q is not None:
@@ -298,7 +304,7 @@ class Q8iv(Instrument):
                 if self.verbose:
                     print("[Q8iv] Communication already closed.")
         except Exception as e:
-            raise RuntimeError(f"[Q8iv][ERROR] Error during close(): {e}.")
+            raise RuntimeError(f"[Q8iv][ERROR] Error during shutdown sequence: {e}.")
 
     # ------------------------------------------------------------------
     # Core I/V operations
@@ -320,6 +326,7 @@ class Q8iv(Instrument):
         ------
         ValueError
             If not in current mode.
+            If out of current limits.
         """
         if self._init_mode != "i":
             raise ValueError(
@@ -328,17 +335,15 @@ class Q8iv(Instrument):
         chans = [int(c) for c in self.__to_list(channel)]
         currents = [float(v) for v in self.__to_list(current)]
         self.__validate_chans_vals(chans, currents)
-        for ch, cur in zip(chans, currents):
-            if cur > self.imax or cur < 0:
-                if self.verbose:
-                    print(
-                        f"[Q8iv] Out-of-range current on channel {ch} "
-                        f"(requested {cur} mA) — clamped to 0 mA."
-                    )
-                cur = 0.0
-            self._q.i[ch] = cur
-            if self.verbose:
-                print(f"[Q8iv] Setting channel {ch} to {cur:.6g} mA.")
+        invalid_values = [v for v in currents if not (0 <= v <= self.imax)]
+        if invalid_values:
+            raise ValueError(
+                f"[Q8iv][ERROR] One or more values {invalid_values} are out of range. "
+                f"Valid range for currents: 0 to {self.imax} mA."
+            )
+        self._q.i[chans] = currents
+        if self.verbose:
+            print(f"[Q8iv] Channels {chans} set to {currents} mA.")
         time.sleep(self.transient)
 
     def get_current(self, channel: Union[int, Sequence[int]]) -> List[float]:
@@ -357,7 +362,7 @@ class Q8iv(Instrument):
         """
         chans = [int(c) for c in self.__to_list(channel)]
         self.__validate_channel(chans)
-        values = [float(self._q.i[ch]) for ch in chans]       
+        values = list(self._q.i[chans])
         if self.verbose:
             print(f"[Q8iv] Current on channel {chans}: {values} mA.")         
         return values   
@@ -379,6 +384,7 @@ class Q8iv(Instrument):
         ------
         ValueError
             If not in voltage mode.
+            If out of voltage limits.
         """
         if self._init_mode != "v":
             raise ValueError(
@@ -387,19 +393,17 @@ class Q8iv(Instrument):
         chans = [int(c) for c in self.__to_list(channel)]
         volts = [float(v) for v in self.__to_list(voltage)]
         self.__validate_chans_vals(chans, volts)
-        for ch, v in zip(chans, volts):
-            if v > self.vmax or v < 0:
-                if self.verbose:
-                    print(
-                        f"[Q8iv] Out-of-range voltage on channel {ch} "
-                        f"(requested {v} V) — clamped to 0 V."
-                    )
-                v = 0.0
-            self._q.v[ch] = v
-            if self.verbose:
-                print(f"[Q8iv] Setting channel {ch} to {v:.6g} V.")
+        invalid_values = [v for v in volts if not (0 <= v <= self.vmax)]
+        if invalid_values:
+            raise ValueError(
+                f"[Q8iv][ERROR] One or more values {invalid_values} are out of range. "
+                f"Valid range for voltages: 0 to {self.vmax} V."
+            )
+        self._q.v[chans] = volts
+        if self.verbose:
+            print(f"[Q8iv] Channels {chans} set to {volts} V.")
         time.sleep(self.transient)
-
+        
     def get_voltage(self, channel: Union[int, Sequence[int]]) -> List[float]:
         """
         Return voltage for one or more channels.
@@ -416,7 +420,7 @@ class Q8iv(Instrument):
         """
         chans = [int(c) for c in self.__to_list(channel)]
         self.__validate_channel(chans)
-        values = [float(self._q.v[ch]) for ch in chans]        
+        values = list(self._q.v[chans])
         if self.verbose:
             print(f"[Q8iv] Voltage on channel {chans}: {values} V.")   
         return values
