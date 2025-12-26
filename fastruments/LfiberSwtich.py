@@ -33,7 +33,7 @@ class FiberSwitch(Instrument):
         VISA resource string (e.g. ``'ASRL3::INSTR'`` for Serial/USB).
     timeout : int, optional
         Communication timeout in milliseconds (default: ``5000``).
-    switching_delay : float, optional
+    transient : float, optional
         Wait time in seconds after sending a switching command and before
         reading the response (default: ``0.1``). This ensures the hardware
         completes the operation.
@@ -46,7 +46,7 @@ class FiberSwitch(Instrument):
         Active VISA session object.
     verbose : bool
         Flag controlling console output.
-    switching_delay : float
+    transient : float
         Wait time (seconds) utilized during channel changes.
     model_info : dict
         Dictionary containing parsed device details (Model, Channels, Wavelength, Fiber Type).
@@ -80,7 +80,7 @@ class FiberSwitch(Instrument):
         self,
         resource: str,
         timeout: int = 5000,
-        switching_delay: float = 0.1,
+        transient: float = 0.1,
         verbose: bool = True,
     ) -> None:
         """
@@ -91,7 +91,7 @@ class FiberSwitch(Instrument):
         self.resource = resource
         self.verbose = verbose
         self.timeout = timeout
-        self.switching_delay = switching_delay
+        self.transient = transient
         self.model_info = {}
         self.connect()
 
@@ -256,7 +256,7 @@ class FiberSwitch(Instrument):
             If the instrument fails to reset.
         """
         resp = self.__query_cmd("OSW_OUT_00")  # Set channel to 00 resets the switch
-        time.sleep(self.switching_delay)  # Wait for hardware switching
+        time.sleep(self.transient)  # Wait for hardware switching
         if resp == "OSW_OUT_OK":
             if self.verbose:
                 print("[LF_OSW] Instrument reset (channel 00).")
@@ -312,7 +312,7 @@ class FiberSwitch(Instrument):
         resp = self.__query_cmd(
             f"OSW_OUT_{channel:02d}"
         )  # Format command: OSW_OUT_XX (e.g., OSW_OUT_01)
-        time.sleep(self.switching_delay)  # Wait for hardware switching
+        time.sleep(self.transient)  # Wait for hardware switching
         if (
             resp == "OSW_OUT_OK"
         ):  # Validate response (success: <OSW_OUT_OK>, error: <OSW_OUT_OVERFLOW>)
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     
     try:
         # Initialization
-        osw = FiberSwitch("ASRL3::INSTR", switching_delay=0.1, verbose=True)
+        osw = FiberSwitch("ASRL3::INSTR", transient=0.1, verbose=True)
 
         # General communication and status
         osw.idn()
