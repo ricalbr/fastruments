@@ -7,8 +7,8 @@ This module provides a safe, documented wrapper around the low-level
 `qontrol.QXOutput` object exposing:
 - validated channel access (0-indexed),
 - compliance/current/voltage guards,
-- unified verbose logging and error handling consistent with AFG3011C,
-  TBS2204B and LF_OSW drivers in this codebase.
+- unified verbose logging and error handling consistent with fastruments drivers
+  in this library.
 """
 
 import time
@@ -66,21 +66,18 @@ class Q8iv(Instrument):
     - Channel numbering is **0-based**.
     - Compliance limits are enforced in software and clamped when exceeding
       hardware safe values.
-    - This wrapper standardizes behaviour and error formatting to match the
-      rest of the instrumentation drivers in this repository.
 
     Examples
     --------
-    >>> from lib.instruments.qontrol.core import Q8iv
-    >>> drv = Q8iv('COM4', init_mode='i', verbose=True)
+    >>> from fastruments.Qontrol import Q8iv
+    >>> drv = Qontrol('COM4', init_mode='i', verbose=True)
     [Q8iv] Initialised Qontrol in 'i' mode with 8 channels. imax=24.0 mA, vmax=12.0 V.
     >>> drv.set_current(0, 5.0)      # Set channel 0 to 5 mA
     [Q8iv] Setting channel 0 to 5 mA.
-    >>> current = drv.get_current([0, 1, 2])
-    >>> print(current)
-    [4.995, 0.000, 0.000]
-    >>> drv.set_all_zero()
+    >>> currents = drv.get_current([0, 1])
+    [Q8iv] Current on channel [0, 1]: [5.0, 0.0] mA.
     >>> drv.close()
+    [Q8iv] Setting all outputs to zero.
     [Q8iv] Successfully closed communication.
     """
 
@@ -102,6 +99,12 @@ class Q8iv(Instrument):
         Initialise the Q8iv wrapper and connect to the Qontrol board.
 
         See class docstring for detailed parameter descriptions.
+        
+        Raises
+        ------
+        ValueError
+            If the provided `init_mode` is not ``'i'`` or ``'v'``.
+            if compliance values exceed hardware limits.
         """
         self.verbose = verbose
         self.resource = resource
@@ -140,58 +143,70 @@ class Q8iv(Instrument):
                 f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
             )
 
-    def connect(self) -> None:
-        """
-        Establish the low-level communication with the Qontrol board.
-
-        This method initializes the `qontrol.QXOutput` interface using the 
-        provided serial port resource and sets a default response timeout.
-
-        Raises
-        ------
-        ConnectionError
-            If the Qontrol low-level driver fails to initialize or if the 
-            serial port is inaccessible.
-        """
-        try:
-            self._q = qontrol.QXOutput(
-                serial_port_name=self.resource, response_timeout=self.timeout
-            )
-        except Exception as e:
-            raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
-
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
     def __to_list(self, obj: Union[int, float, Sequence[Union[int, float]]]) -> List:
         """
         Convert an int/float or sequence into a Python list.
+
+        Parameters
+        ----------
+        obj : int, float or Sequence
+            The input value or collection to convert.
+
+        Returns
+        -------
+        List
+            A standard Python list containing the input elements.
         """
         arr = np.atleast_1d(obj)
         return arr.tolist()
 
-    def __validate_channel(self, ch: int) -> None:
+    def __validate_channel(self, chans: Sequence[int]) -> None:
         """
-        Validate that channel index is within 0..num_channels-1.
+        Validate that channel indices exist.
+
+        Parameters
+        ----------
+        chans : Sequence[int]
+            A sequence of channel indices to validate.
+        
+        Raises
+        ------
+        ValueError
+            If the channel index is out of the hardware range.
         """
-        if not (0 <= ch < self.__num_channels):
-            raise ValueError(
-                f"[Q8iv][ERROR] Invalid channel {ch}. "
-                f"Valid range: 0 to {self.__num_channels - 1}."
-            )
+        for ch in chans:
+            if not (0 <= ch < self.__num_channels):
+                raise ValueError(
+                    f"[Q8iv][ERROR] Invalid channel {ch}. "
+                    f"Valid range: 0 to {self.__num_channels - 1}."
+                )
 
     def __validate_chans_vals(
         self, chans: Sequence[int], vals: Sequence[float]
     ) -> None:
         """
         Validate channels and values length and indices.
+
+        Parameters
+        ----------
+        chans : Sequence of int
+            List of channel indices.
+        vals : Sequence of float
+            List of target values.
+
+        Raises
+        ------
+        ValueError
+            If the lengths of `chans` and `vals` do not match.
         """
         if len(chans) != len(vals):
             raise ValueError(
                 f"[Q8iv][ERROR] Number of channels ({len(chans)}) and values ({len(vals)}) must match."
             )
-        for ch in chans:
-            self.__validate_channel(int(ch))
+        self.__validate_channel(chans)
 
     # ------------------------------------------------------------------
     # Properties: instantaneous device state
@@ -238,18 +253,73 @@ class Q8iv(Instrument):
         return out
 
     # ------------------------------------------------------------------
+    # General communication and status
+    # ------------------------------------------------------------------
+    def connect(self) -> None:
+        """
+        Establish the low-level communication with the Qontrol board.
+
+        This method initializes the `qontrol.QXOutput` interface using the 
+        provided serial port resource and sets a default response timeout.
+
+        Raises
+        ------
+        ConnectionError
+            If the Qontrol low-level driver fails to initialize.
+        """
+        try:
+            self._q = qontrol.QXOutput(
+                serial_port_name=self.resource, response_timeout=self.timeout
+            )
+        except Exception as e:
+            raise ConnectionError(f"[Q8iv][ERROR] Could not initialise Qontrol: {e}.")
+
+    def close(self) -> None:
+        """
+        Close communication and safely turn off all channels.
+
+        Notes
+        -----
+        Before closing, all outputs are automatically set to zero. Should always
+        be called before program termination to release the COM resource.
+        """
+        try:
+            if self._q is not None:
+                self.set_all_zero()
+                try:
+                    self._q.close()
+                except Exception:
+                    raise RuntimeError("[Q8iv][ERROR] Low-level Qontrol close failed.")
+                finally:
+                    self._q = None
+                if self.verbose:
+                    print("[Q8iv] Successfully closed communication.")
+            else:
+                if self.verbose:
+                    print("[Q8iv] Communication already closed.")
+        except Exception as e:
+            raise RuntimeError(f"[Q8iv][ERROR] Error during close(): {e}.")
+
+    # ------------------------------------------------------------------
     # Core I/V operations
     # ------------------------------------------------------------------
     def set_current(
         self, channel: Union[int, Sequence[int]], current: Union[float, Sequence[float]]
     ) -> None:
         """
-        Set output current for one or more channels (mA).
+        Set output current for one or more channels.
 
+        Parameters
+        ----------
+        channel : int or Sequence of int
+            Zero-indexed channel number(s).
+        current : float or Sequence of float
+            Target current value(s) in mA.
+            
         Raises
         ------
         ValueError
-            If not in current mode, or invalid channel/value input.
+            If not in current mode.
         """
         if self._init_mode != "i":
             raise ValueError(
@@ -273,11 +343,20 @@ class Q8iv(Instrument):
 
     def get_current(self, channel: Union[int, Sequence[int]]) -> List[float]:
         """
-        Return current (mA) for one or more channels.
+        Return current for one or more channels.
+        
+        Parameters
+        ----------
+        channel : int or Sequence of int
+            Zero-indexed channel number(s).
+
+        Returns
+        -------
+        List of float
+            Measured current values in mA.
         """
         chans = [int(c) for c in self.__to_list(channel)]
-        for ch in chans:
-            self.__validate_channel(ch)
+        self.__validate_channel(chans)
         values = [float(self._q.i[ch]) for ch in chans]       
         if self.verbose:
             print(f"[Q8iv] Current on channel {chans}: {values} mA.")         
@@ -288,11 +367,18 @@ class Q8iv(Instrument):
     ) -> None:
         """
         Set output voltage for one or more channels (V).
-
+        
+        Parameters
+        ----------
+        channel : int or Sequence of int
+            Zero-indexed channel number(s).
+        voltage : float or Sequence of float
+            Target voltage value(s) in volts.
+            
         Raises
         ------
         ValueError
-            If not in voltage mode, or invalid channel/value input.
+            If not in voltage mode.
         """
         if self._init_mode != "v":
             raise ValueError(
@@ -316,11 +402,20 @@ class Q8iv(Instrument):
 
     def get_voltage(self, channel: Union[int, Sequence[int]]) -> List[float]:
         """
-        Return voltage (V) for one or more channels.
+        Return voltage for one or more channels.
+        
+        Parameters
+        ----------
+        channel : int or Sequence of int
+            Zero-indexed channel number(s).
+
+        Returns
+        -------
+        List of float
+            Measured voltage values in volts.
         """
         chans = [int(c) for c in self.__to_list(channel)]
-        for ch in chans:
-            self.__validate_channel(ch)
+        self.__validate_channel(chans)
         values = [float(self._q.v[ch]) for ch in chans]        
         if self.verbose:
             print(f"[Q8iv] Voltage on channel {chans}: {values} V.")   
@@ -335,10 +430,17 @@ class Q8iv(Instrument):
         """
         Set current and voltage compliance limits.
 
+        Parameters
+        ----------
+        current : float, optional
+            Current compliance in mA (default: `__IMAX_DEFAULT`).
+        voltage : float, optional
+            Voltage compliance in V (default: `__VMAX_DEFAULT`).
+            
         Raises
         ------
         ValueError
-            If compliance exceeds hardware defaults.
+            If compliance exceeds hardware limits.
         """
         if not (0 < current <= self.__IMAX_DEFAULT) or not (
             0 < voltage <= self.__VMAX_DEFAULT
@@ -379,46 +481,30 @@ class Q8iv(Instrument):
                     self._q.i[ch] = 0.0
         time.sleep(self.transient)
 
-    def close(self) -> None:
-        """
-        Close communication and safely turn off all channels.
-
-        Notes
-        -----
-        Before closing, all outputs are automatically set to zero.
-        """
-        try:
-            if self._q is not None:
-                self.set_all_zero()
-                try:
-                    self._q.close()
-                except Exception:
-                    raise RuntimeError("[Q8iv][ERROR] Low-level Qontrol close failed.")
-                finally:
-                    self._q = None
-                if self.verbose:
-                    print("[Q8iv] Successfully closed communication.")
-            else:
-                if self.verbose:
-                    print("[Q8iv] Communication already closed.")
-        except Exception as e:
-            raise RuntimeError(f"[Q8iv][ERROR] Error during close(): {e}.")
-
 
 if __name__ == "__main__":
 
-    drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
+    drv = None
+    
+    try:
+        # Initialization       
+        drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
 
-    # General compliance and status
-    drv.set_compliance(current=24.0, voltage=12.0)
+        # Core I/V operations
+        drv.set_current(0, 5.0)
+        drv.set_current([1, 2], [3.0, 7.5])
+        drv.get_current([0, 1, 2])
+        drv.get_voltage([0, 1, 2])
+        drv.set_all_zero()
+        drv.get_current([0, 1, 2])
+        drv.get_voltage([0, 1, 2])
+    
+        # Utility operations
+        drv.set_compliance(current=20.0, voltage=10.0)
+        
+    except Exception as e:
+        print(f"{e}")
 
-    # Core I/V operations
-    drv.set_current(0, 5.0)
-    drv.set_current([1, 2], [3.0, 7.5])
-    drv.get_current([0, 1, 2])
-    drv.get_voltage([0, 1, 2])
-    drv.set_all_zero()
-    drv.get_current([0, 1, 2])
-    drv.get_voltage([0, 1, 2])
-
-    drv.close()
+    finally:
+        if drv is not None:
+            drv.close()

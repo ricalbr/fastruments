@@ -53,8 +53,8 @@ class FiberSwitch(Instrument):
 
     Examples
     --------
-    >>> from lib.instruments.lfiber.core import LF_OSW
-    >>> osw = LF_OSW('ASRL3::INSTR', verbose=True)
+    >>> from fastruments.LfiberSwitch import FiberSwitch
+    >>> osw = FiberSwitch('ASRL3::INSTR', verbose=True)
     [LF_OSW] IDN: LF-OSW-1X16-1550-PMF-09-10-R-FA.
     [LF_OSW] Model string parsed: Channels: 16, Wavelength: 1550 nm, Fiber: PMF.
     [LF_OSW] Connected successfully.
@@ -134,18 +134,18 @@ class FiberSwitch(Instrument):
 
     def __update_info(self, idn_str: str) -> dict:
         """
-        Parse the identification string (e.g., LF-OSW-1X16-1550-PMF...>) to
+        Parse the identification string (e.g., LF-OSW-1X16-1550-PMF...) to
         determine number of channels and fiber properties.
 
         Parameters
         ----------
         idn_str : str
-            Response string obtained from 'idn()'.
+            Response string obtained from `idn()`.
 
         Returns
         -------
         dict
-            Dictionary containing 'model', 'channels', 'wavelength', 'fiber_type'.
+            Dictionary containing `model`, `channels`, `wavelength`, `fiber_type`.
 
         Raises
         ------
@@ -293,7 +293,7 @@ class FiberSwitch(Instrument):
         Parameters
         ----------
         channel : int
-            Target channel number (1 to `model_info['channels']`).
+            Target channel number (``1`` to `model_info['channels']`).
             Setting 0 is equivalent to reset (handled by `reset()`).
 
         Raises
@@ -354,15 +354,24 @@ class FiberSwitch(Instrument):
 
 if __name__ == "__main__":
 
-    osw = FiberSwitch("ASRL3::INSTR", switching_delay=0.1, verbose=True)
+    osw = None
+    
+    try:
+        # Initialization
+        osw = FiberSwitch("ASRL3::INSTR", switching_delay=0.1, verbose=True)
 
-    # General communication and status
-    osw.idn()
-    osw.reset()
+        # General communication and status
+        osw.idn()
+        osw.reset()
 
-    # Channel control
-    osw.get_channel()
-    osw.set_channel(5)
-    osw.get_channel()
+        # Channel control
+        osw.get_channel()
+        osw.set_channel(5)
+        osw.get_channel()
+        
+    except Exception as e:
+        print(f"{e}")
 
-    osw.close()
+    finally:
+        if osw is not None:
+            osw.close()

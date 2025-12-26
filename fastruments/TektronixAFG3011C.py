@@ -45,7 +45,7 @@ class AFG3011C(Instrument):
 
     Examples
     --------
-    >>> from lib.instruments.afg3011c.core import AFG3011C
+    >>> from fastruments.TektronixAFG3011C import AFG3011C
     >>> afg = AFG3011C('USB::0x0699::0x034F::C020348::INSTR', verbose=True)
     [AFG3011C] IDN: TEKTRONIX,AFG3011C,C020348,SCPI:99.0 FV:1.0.9.
     [AFG3011C] Connected successfully.
@@ -230,7 +230,7 @@ class AFG3011C(Instrument):
         Parameters
         ----------
         freq : float
-            Frequency in hertz. Valid ranges (min, max) are defined in __FREQ_RANGE
+            Frequency in hertz. Valid ranges (min, max) are defined in `__FREQ_RANGE`
             depending on the current waveform type.
 
         Raises
@@ -469,32 +469,41 @@ class AFG3011C(Instrument):
 
 
 if __name__ == "__main__":
-    afg = AFG3011C("USB::0x0699::0x034F::C020348::INSTR", verbose=True)
 
-    # General communication and status
-    afg.idn()
-    afg.reset()
-    afg.clear()
-    afg.beep()
+    afg = None
+    
+    try:
+        # Initialization
+        afg = AFG3011C("USB::0x0699::0x034F::C020348::INSTR", verbose=True)
 
-    # Basic waveform control
-    afg.set_function("SIN")
-    afg.set_output_impedance("INF")
-    afg.get_function()
-    afg.set_frequency(200)
-    afg.get_frequency()
-    afg.set_offset(0.013)
-    afg.get_offset()
-    afg.set_amplitude(10.0005)
-    afg.get_amplitude()
+        # General communication and status
+        afg.idn()
+        afg.reset()
+        afg.clear()
+        afg.beep()
 
-    # Impedance control
-    afg.set_output_impedance("INF")
-    afg.get_output_impedance()
+        # Basic waveform control
+        afg.set_function("SIN")
+        afg.set_output_impedance("INF")
+        afg.get_function()
+        afg.set_frequency(200)
+        afg.get_frequency()
+        afg.set_offset(0.013)
+        afg.get_offset()
+        afg.set_amplitude(10.0005)
+        afg.get_amplitude()
 
-    # Output control
-    afg.set_output_state(True)
-    afg.get_output_state()
+        # Impedance control
+        afg.set_output_impedance("INF")
+        afg.get_output_impedance()
 
-    # Close connection
-    afg.close()
+        # Output control
+        afg.set_output_state(True)
+        afg.get_output_state()
+
+    except Exception as e:
+        print(f"{e}")
+
+    finally:
+        if afg is not None:
+            afg.close()

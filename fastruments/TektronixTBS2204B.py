@@ -49,7 +49,7 @@ class TBS2204B(Instrument):
 
     Examples
     --------
-    >>> from lib.instruments.tbs2204b.core import TBS2204B
+    >>> from fastruments.TektronixTBS2204B import TBS2204B
     >>> scope = TBS2204B('USB::0x0699::0x03C7::C010302::INSTR', verbose=True)
     [TBS2204B] IDN: TEKTRONIX,TBS2204B,C010302,CF:91.1CT FV:v1.27.19; FPGA:v2.18;.
     [TBS2204B] Connected successfully.
@@ -1067,56 +1067,71 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    scope = TBS2204B("USB::0x0699::0x03C7::C010302::INSTR", verbose=True)
+    scope = None
+    
+    try:
+        # Initialization
+        scope = TBS2204B("USB::0x0699::0x03C7::C010302::INSTR", verbose=True)
 
-    # General communication and status
-    scope.idn()
-    scope.clear()
-    scope.reset()
-    scope.autoset()
+        # General communication and status
+        scope.idn()
+        scope.clear()
+        scope.reset()
+        scope.autoset()
 
-    # Channel control
-    scope.set_channel_display(2, True)
-    scope.get_channel_display(2)
-    scope.set_channel_coupling(2, "DC")
-    scope.get_channel_coupling(2)
-    scope.set_channel_position(2, 0)
-    scope.get_channel_position(2)
-    scope.set_channel_gain(2, 1)
-    scope.get_channel_gain(2)
-    scope.set_channel_bandwidth(2, 20e6)
-    scope.get_channel_bandwidth(2)
-    scope.set_channel_scale(2, 1)
-    scope.get_channel_scale(2)
+        # Channel control
+        scope.set_channel_display(2, True)
+        scope.get_channel_display(2)
+        scope.set_channel_coupling(2, "DC")
+        scope.get_channel_coupling(2)
+        scope.set_channel_position(2, 0)
+        scope.get_channel_position(2)
+        scope.set_channel_gain(2, 1)
+        scope.get_channel_gain(2)
+        scope.set_channel_bandwidth(2, 20e6)
+        scope.get_channel_bandwidth(2)
+        scope.set_channel_scale(2, 1)
+        scope.get_channel_scale(2)
 
-    # Timebase configuration
-    scope.set_timebase_position(7.5)
-    scope.get_timebase_position()
-    scope.set_timebase_scale(0.001)
-    scope.get_timebase_scale()
+        # Timebase configuration
+        scope.set_timebase_position(7.5)
+        scope.get_timebase_position()
+        scope.set_timebase_scale(0.001)
+        scope.get_timebase_scale()
 
-    # Trigger settings
-    scope.set_trigger_mode("AUTO")
-    scope.get_trigger_mode()
-    scope.set_trigger_slope("FALL")
-    scope.get_trigger_slope()
-    scope.set_trigger_source(2)
-    scope.get_trigger_source()
-    scope.set_trigger_level(1.5)
-    scope.get_trigger_level()
+        # Trigger settings
+        scope.set_trigger_mode("AUTO")
+        scope.get_trigger_mode()
+        scope.set_trigger_slope("FALL")
+        scope.get_trigger_slope()
+        scope.set_trigger_source(2)
+        scope.get_trigger_source()
+        scope.set_trigger_level(1.5)
+        scope.get_trigger_level()
 
-    # Waveform acquisition
-    scope.set_record_length(2e3)
-    scope.get_record_length()
-    scope.get_acquisition_state()
-    scope.stop_acquisition()
-    scope.get_acquisition_state()
-    scope.start_acquisition()
-    scope.get_acquisition_state()
-    scope.single_acquisition()
-    scope.get_acquisition_state()
-    t, v = scope.get_waveform(2)
-    plt.plot(t, v)
-    plt.show()
+        # Waveform acquisition
+        scope.set_record_length(2e3)
+        scope.get_record_length()
+        scope.get_acquisition_state()
+        scope.stop_acquisition()
+        scope.get_acquisition_state()
+        scope.start_acquisition()
+        scope.get_acquisition_state()
+        scope.single_acquisition()
+        scope.get_acquisition_state()
+        
+        # Data retrieval and plotting
+        t, v = scope.get_waveform(2)
+        plt.plot(t, v)
+        plt.title("Acquired Waveform - Channel 2")
+        plt.xlabel("Time (s)")
+        plt.ylabel("Voltage (V)")
+        plt.grid(True)
+        plt.show()
 
-    scope.close()
+    except Exception as e:
+        print(f"{e}")
+
+    finally:
+        if scope is not None:
+            scope.close()
