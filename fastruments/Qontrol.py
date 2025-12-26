@@ -104,7 +104,6 @@ class Q8iv(Instrument):
         ------
         ValueError
             If the provided `init_mode` is not ``'i'`` or ``'v'``.
-            if compliance values exceed hardware limits.
         """
         self.verbose = verbose
         self.resource = resource
@@ -159,7 +158,7 @@ class Q8iv(Instrument):
 
         Parameters
         ----------
-        chans : Sequence[int]
+        chans : Sequence of int
             A sequence of channel indices to validate.
         
         Raises
