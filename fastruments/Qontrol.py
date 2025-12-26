@@ -72,7 +72,7 @@ class Q8iv(Instrument):
     >>> from fastruments.Qontrol import Q8iv
     >>> drv = Q8iv('COM4', init_mode='i', verbose=True)
     [Q8iv] Initialised Qontrol in 'i' mode with 8 channels. imax=24.0 mA, vmax=12.0 V.
-    >>> drv.set_current(0, 5.0)      # Set channel 0 to 5 mA
+    >>> drv.set_current(0, 5.0)
     [Q8iv] Setting channel 0 to 5 mA.
     >>> currents = drv.get_current([0, 1])
     [Q8iv] Current on channel [0, 1]: [5.0, 0.0] mA.
@@ -112,35 +112,25 @@ class Q8iv(Instrument):
         self.connect()
         # Detect channel count
         try:
-            self.__num_channels = len(self._q.i)
+            self.num_channels = len(self._q.i)
         except Exception:
             try:
-                self.__num_channels = len(self._q.v)
+                self.num_channels = len(self._q.v)
             except Exception:
-                self.__num_channels = 8
+                self.num_channels = 8
         # Validate init mode
         mode = init_mode.lower()
         if mode not in ("i", "v"):
             raise ValueError(
                 f"[Q8iv][ERROR] Invalid init_mode '{init_mode}'. Use 'i' or 'v'."
             )
-        self._init_mode = mode
-        # Validate compliance
-        if not (0 < imax <= self.__IMAX_DEFAULT) or not (
-            0 < vmax <= self.__VMAX_DEFAULT
-        ):
-            raise ValueError(
-                f"[Q8iv][ERROR] Compliance out of bounds: "
-                f"imax<={self.__IMAX_DEFAULT}, vmax<={self.__VMAX_DEFAULT}."
-            )
+        self.init_mode = mode
         self.set_compliance(imax, vmax)
-        self.imax = imax
-        self.vmax = vmax
         self.transient = transient
         if self.verbose:
             print(
-                f"[Q8iv] Initialised Qontrol in {self._init_mode!r} mode with "
-                f"{self.__num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
+                f"[Q8iv] Initialised Qontrol in '{self.init_mode}' mode with "
+                f"{self.num_channels} channels. imax={self.imax} mA, vmax={self.vmax} V."
             )
 
     # ------------------------------------------------------------------
@@ -178,10 +168,10 @@ class Q8iv(Instrument):
             If the channel index is out of the hardware range.
         """
         for ch in chans:
-            if not (0 <= ch < self.__num_channels):
+            if not (0 <= ch < self.num_channels):
                 raise ValueError(
                     f"[Q8iv][ERROR] Invalid channel {ch}. "
-                    f"Valid range: 0 to {self.__num_channels - 1}."
+                    f"Valid range: 0 to {self.num_channels - 1}."
                 )
 
     def __validate_chans_vals(
@@ -211,13 +201,6 @@ class Q8iv(Instrument):
     # ------------------------------------------------------------------
     # Properties: instantaneous device state
     # ------------------------------------------------------------------
-    @property
-    def num_channels(self) -> int:
-        """
-        Number of detected channels.
-        """
-        return self.__num_channels
-
     @property
     def current(self) -> List[float]:
         """
@@ -326,9 +309,9 @@ class Q8iv(Instrument):
         ------
         ValueError
             If not in current mode.
-            If out of current limits.
+            If out of current compliance limits.
         """
-        if self._init_mode != "i":
+        if self.init_mode != "i":
             raise ValueError(
                 "[Q8iv][ERROR] Attempted to set current while in voltage mode."
             )
@@ -384,9 +367,9 @@ class Q8iv(Instrument):
         ------
         ValueError
             If not in voltage mode.
-            If out of voltage limits.
+            If out of voltage compliance limits.
         """
-        if self._init_mode != "v":
+        if self.init_mode != "v":
             raise ValueError(
                 "[Q8iv][ERROR] Attempted to set voltage while in current mode."
             )
@@ -429,37 +412,33 @@ class Q8iv(Instrument):
     # Utility operations
     # ------------------------------------------------------------------
     def set_compliance(
-        self, current: float = __IMAX_DEFAULT, voltage: float = __VMAX_DEFAULT
-    ) -> None:
+        self, imax: float, vmax: float) -> None:
         """
         Set current and voltage compliance limits.
 
         Parameters
         ----------
-        current : float, optional
-            Current compliance in mA (default: `__IMAX_DEFAULT`).
-        voltage : float, optional
-            Voltage compliance in V (default: `__VMAX_DEFAULT`).
+        imax : float
+            Current compliance in mA.
+        vmax : float
+            Voltage compliance in V.
             
         Raises
         ------
         ValueError
             If compliance exceeds hardware limits.
         """
-        if not (0 < current <= self.__IMAX_DEFAULT) or not (
-            0 < voltage <= self.__VMAX_DEFAULT
+        if not (0 < imax <= self.__IMAX_DEFAULT) or not (
+            0 < vmax <= self.__VMAX_DEFAULT
         ):
             raise ValueError(
                 f"[Q8iv][ERROR] Compliance out of bounds: "
                 f"imax<={self.__IMAX_DEFAULT}, vmax<={self.__VMAX_DEFAULT}."
             )
-        try:
-            self._q.imax[:] = float(current)
-            self._q.vmax[:] = float(voltage)
-        except Exception:
-            pass
-        self.imax = float(current)
-        self.vmax = float(voltage)
+        self._q.imax[:] = float(imax)
+        self._q.vmax[:] = float(vmax)
+        self.imax = float(imax)
+        self.vmax = float(vmax)
         if self.verbose:
             print(
                 f"[Q8iv] Compliance updated: imax={self.imax} mA, vmax={self.vmax} V."
@@ -471,17 +450,17 @@ class Q8iv(Instrument):
         """
         if self.verbose:
             print("[Q8iv] Setting all outputs to zero.")
-        if self._init_mode == "v":
+        if self.init_mode == "v":
             try:
                 self._q.v[:] = 0.0
             except Exception:
-                for ch in range(self.__num_channels):
+                for ch in range(self.num_channels):
                     self._q.v[ch] = 0.0
         else:
             try:
                 self._q.i[:] = 0.0
             except Exception:
-                for ch in range(self.__num_channels):
+                for ch in range(self.num_channels):
                     self._q.i[ch] = 0.0
         time.sleep(self.transient)
 
@@ -494,6 +473,9 @@ if __name__ == "__main__":
         # Initialization       
         drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
 
+        # Utility operations
+        drv.set_compliance(imax=20.0, vmax=10.0)
+        
         # Core I/V operations
         drv.set_current(0, 5.0)
         drv.set_current([1, 2], [3.0, 7.5])
@@ -502,9 +484,6 @@ if __name__ == "__main__":
         drv.set_all_zero()
         drv.get_current([0, 1, 2])
         drv.get_voltage([0, 1, 2])
-    
-        # Utility operations
-        drv.set_compliance(current=20.0, voltage=10.0)
         
     except Exception as e:
         print(f"{e}")
