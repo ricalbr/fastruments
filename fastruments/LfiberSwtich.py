@@ -370,8 +370,11 @@ if __name__ == "__main__":
         osw.get_channel()
         
     except Exception as e:
-        print(f"{e}")
-
+        msg = str(e)
+        if not msg.startswith("[LF_OSW][ERROR]"):
+            msg = f"[LF_OSW][ERROR] {msg}"
+        print(msg)
+        
     finally:
         if osw is not None:
             osw.close()

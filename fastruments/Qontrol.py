@@ -487,7 +487,10 @@ if __name__ == "__main__":
         drv.get_voltage([0, 1, 2])
         
     except Exception as e:
-        print(f"{e}")
+        msg = str(e)
+        if not msg.startswith("[Q8iv][ERROR]"):
+            msg = f"[Q8iv][ERROR] {msg}"
+        print(msg)
 
     finally:
         if drv is not None:

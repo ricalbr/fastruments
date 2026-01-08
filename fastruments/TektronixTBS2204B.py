@@ -1130,7 +1130,10 @@ if __name__ == "__main__":
         plt.show()
 
     except Exception as e:
-        print(f"{e}")
+        msg = str(e)
+        if not msg.startswith("[TBS2204B][ERROR]"):
+            msg = f"[TBS2204B][ERROR] {msg}"
+        print(msg)
 
     finally:
         if scope is not None:

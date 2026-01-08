@@ -502,8 +502,11 @@ if __name__ == "__main__":
         afg.get_output_state()
 
     except Exception as e:
-        print(f"{e}")
-
+        msg = str(e)
+        if not msg.startswith("[AFG3011C][ERROR]"):
+            msg = f"[AFG3011C][ERROR] {msg}"
+        print(msg)
+        
     finally:
         if afg is not None:
             afg.close()
