@@ -323,7 +323,8 @@ class Q8iv(Instrument):
                 f"[Q8iv][ERROR] One or more values {invalid_values} are out of range. "
                 f"Valid range for currents: 0 to {self.imax} mA."
             )
-        self._q.i[chans] = currents
+        for ch, val in zip(chans, currents):
+            self._q.i[ch] = val
         if self.verbose:
             print(f"[Q8iv] Channels {chans} set to {currents} mA.")
         time.sleep(self.transient)
@@ -344,7 +345,7 @@ class Q8iv(Instrument):
         """
         chans = [int(c) for c in self.__to_list(channel)]
         self.__validate_channel(chans)
-        values = list(self._q.i[chans])
+        values = [self._q.i[ch] for ch in chans]
         if self.verbose:
             print(f"[Q8iv] Current on channel {chans}: {values} mA.")         
         return values   
@@ -381,7 +382,8 @@ class Q8iv(Instrument):
                 f"[Q8iv][ERROR] One or more values {invalid_values} are out of range. "
                 f"Valid range for voltages: 0 to {self.vmax} V."
             )
-        self._q.v[chans] = volts
+        for ch, val in zip(chans, volts):
+            self._q.v[ch] = val
         if self.verbose:
             print(f"[Q8iv] Channels {chans} set to {volts} V.")
         time.sleep(self.transient)
@@ -402,7 +404,7 @@ class Q8iv(Instrument):
         """
         chans = [int(c) for c in self.__to_list(channel)]
         self.__validate_channel(chans)
-        values = list(self._q.v[chans])
+        values = [self._q.v[ch] for ch in chans]
         if self.verbose:
             print(f"[Q8iv] Voltage on channel {chans}: {values} V.")   
         return values
