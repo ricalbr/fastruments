@@ -1,4 +1,5 @@
-""" Helper functions """
+"""Helper functions"""
+
 from typing import Optional
 from typing import Tuple
 from typing import Protocol
@@ -7,6 +8,7 @@ import ctypes
 
 class _HasAttr(Protocol):
     """Protocol for objects that can receive dynamically bound attributes."""
+
     pass
 
 
@@ -30,4 +32,3 @@ class DllBinder:
             func.argtypes = argtypes  # type: ignore[attr-defined]
 
         setattr(target, name, func)
-

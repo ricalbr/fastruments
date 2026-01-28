@@ -68,9 +68,13 @@ class Xenics(Instrument, Camera):
         # Load calibration
         if self.calibration_file is not None:
             flag = 1  # Use software correction
-            error = self.load_calibration( self.xenics_handle, self.calibration_file.encode("utf-8"), flag)
+            error = self.load_calibration(
+                self.xenics_handle, self.calibration_file.encode("utf-8"), flag
+            )
             if error != 0:
-                raise Exception(f"Could't load calibration file {self.calibration_file}. Error code: {error}")
+                raise Exception(
+                    f"Could't load calibration file {self.calibration_file}. Error code: {error}"
+                )
 
         property = "SETTLE"
         val = c_ulong(1)
@@ -80,9 +84,13 @@ class Xenics(Instrument, Camera):
         # Load settings
         if self.settings_file is not None:
             flag = 1  # Ignore settings that do not affect the image
-            error = self.load_settings( self.xenics_handle, self.settings_file.encode("utf-8"), flag)
+            error = self.load_settings(
+                self.xenics_handle, self.settings_file.encode("utf-8"), flag
+            )
             if error != 0:
-                raise Exception( f"Could't load calibration file {self.settings_file}. Error code: {e}")
+                raise Exception(
+                    f"Could't load calibration file {self.settings_file}. Error code: {e}"
+                )
 
         val = c_ulong(1)
         self.get_property_value(self.xenics_handle, property.encode("utf-8"), val)

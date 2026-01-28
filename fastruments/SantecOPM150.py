@@ -67,12 +67,18 @@ class SantecDLL:
         binder.bind(self, "GetDLLStatus", ctypes.c_int, ())
         binder.bind(self, "GetFWRevision", ctypes.c_int, ())
         binder.bind(self, "GetChannelBuffer", ctypes.c_int, ())
-        binder.bind(self, "GetUSBStatus", ctypes.c_int, (ctypes.POINTER(ctypes.c_bool),))
+        binder.bind(
+            self, "GetUSBStatus", ctypes.c_int, (ctypes.POINTER(ctypes.c_bool),)
+        )
 
         # Module / device info
         binder.bind(self, "GetModuleID", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),))
-        binder.bind(self, "GetModuleNumber", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),))
-        binder.bind(self, "GetUSBDeviceCount", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),))
+        binder.bind(
+            self, "GetModuleNumber", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),)
+        )
+        binder.bind(
+            self, "GetUSBDeviceCount", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),)
+        )
         binder.bind(
             self,
             "GetUSBDeviceDescription",
@@ -140,7 +146,9 @@ class SantecDLL:
         )
         binder.bind(self, "ReadLoss", ctypes.c_int, (ctypes.POINTER(ctypes.c_double),))
         binder.bind(self, "ReadPower", ctypes.c_int, (ctypes.POINTER(ctypes.c_double),))
-        binder.bind(self, "ReferencePower", ctypes.c_int, (ctypes.POINTER(ctypes.c_double),))
+        binder.bind(
+            self, "ReferencePower", ctypes.c_int, (ctypes.POINTER(ctypes.c_double),)
+        )
 
         # USB
         binder.bind(
@@ -149,6 +157,7 @@ class SantecDLL:
             ctypes.c_int,
             (ctypes.c_int, ctypes.POINTER(ctypes.c_uint64)),
         )
+
 
 # Enumerations
 class ErrorCodes(enum.IntEnum):
@@ -193,6 +202,7 @@ class ModuleID(enum.IntEnum):
 
 class Wavelengths(enum.IntEnum):
     """Commonly supported wavelengths (in nanometers)."""
+
     nm850 = 850
     nm980 = 980
     nm1300 = 1300
@@ -264,5 +274,3 @@ class OPM150(Instrument):
 
         # Load the SDK
         self._dll: SantecDLL = dll
-
-
