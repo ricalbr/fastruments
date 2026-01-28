@@ -3,6 +3,7 @@ import enum
 import pathlib
 from typing import Optional
 from fastruments.helpers import DllBinder
+import sys
 
 import pathlib
 import os
@@ -266,11 +267,243 @@ class OPM150(Instrument):
     - Autorange and gain settings are shared between adjacent channels.
     """
 
-    def __init__(
-        self,
-        dll: SantecDLL = SantecDLL(),
-    ):
-        super().__init__()
+    def _check(self, code: int) -> None:
+        try:
+            err = ErrorCodes(code)
+        except ValueError:
+            raise RuntimeError(f"Unknown DLL error code: {code}") from None
 
-        # Load the SDK
-        self._dll: SantecDLL = dll
+        if err not in (ErrorCodes.OK_0, ErrorCodes.OK_1):
+            raise RuntimeError(f"DLL error: {err.name}")
+
+    def __init__(self, dll: SantecDLL = SantecDLL(), verbose: bool = True):
+        super().__init__()
+        self._dll = dll
+        self.verbose = verbose
+        self._is_connection_open = False
+
+    def __del__(self):
+        """
+        Destructor: ensure the connection is closed when the object is garbage-collected.
+        """
+        try:
+            self.close()
+        except Exception:
+            # keep destructor silent on errors
+            pass
+
+    def connect(self, device_index: int = 0) -> None:
+        """
+        Connect to a Santec OPM150 via USB.
+
+        Parameters
+        ----------
+        device_index : int, optional
+            USB device index to open (default: 0).
+        """
+        if self._is_connection_open:
+            return
+
+        # --- device count ---
+        count = ctypes.c_int()
+        self._check(self._dll.GetUSBDeviceCount(ctypes.byref(count)))
+
+        if count.value == 0:
+            raise RuntimeError("No Santec USB devices found")
+
+        if device_index >= count.value:
+            raise ValueError(f"device_index {device_index} out of range")
+
+        # --- open USB device ---
+        handle = ctypes.c_uint64()
+        self._check(
+            self._dll.OpenUSBDevice(
+                ctypes.c_int(device_index),
+                ctypes.byref(handle),
+            )
+        )
+
+        # --- open driver ---
+        self._check(self._dll.OpenDriver(handle))
+
+        self._is_connection_open = True
+
+        if self.verbose:
+            print(f"[OPM150] Connected to USB device {device_index}")
+
+    def get_func_name(self, n: int = 0) -> str:
+        """
+        Return the caller function name (used for logging/error messages).
+
+        Parameters
+        ----------
+        n : int
+            Stack offset (0 -> immediate caller).
+
+        Returns
+        -------
+        str
+            The name of the calling function.
+        """
+        return sys._getframe(n + 1).f_code.co_name
+
+    def close(self) -> None:
+        """
+        Close the driver and release communication resources.
+
+        Notes
+        -----
+        - Disables remote mode before closing.
+        - After calling close, further operations will fail until reopened.
+        """
+        if self._is_connection_open:
+            # set remote_mode off first
+            try:
+                self.remote_mode = False
+            except Exception:
+                self.logger.debug(
+                    "Failed to disable remote mode during close", exc_info=True
+                )
+            _ret = op710m_dll.CloseDriver()
+            self._check(self.get_func_name(), _ret)
+            self._is_connection_open = False
+            print("[OPM150] Driver closed")
+
+    @property
+    def active_channel(self) -> int:
+        ch = ctypes.c_int()
+        self._check(self._dll.GetActiveChannel(ctypes.byref(ch)))
+
+        if self.verbose:
+            print(f"[OPM150] Active channel: {ch.value}")
+
+        return ch.value
+
+    @active_channel.setter
+    def active_channel(self, channel: int) -> None:
+        if not (1 <= channel <= 24):
+            raise ValueError("Channel must be in range 1–24")
+
+        self._check(self._dll.SetActiveChannel(ctypes.c_int(channel)))
+
+        if self.verbose:
+            print(f"[OPM150] Active channel set to {channel}")
+
+    @property
+    def wavelength(self) -> Wavelengths:
+        wl = ctypes.c_int()
+        idx = ctypes.c_int()
+        count = ctypes.c_int()
+
+        self._check(
+            self._dll.GetWavelength(
+                ctypes.byref(wl), ctypes.byref(idx), ctypes.byref(count)
+            )
+        )
+
+        wavelength = Wavelengths(wl.value)
+
+        if self.verbose:
+            print(f"[OPM150] Wavelength: {wavelength.value} nm")
+
+        return wavelength
+
+    @wavelength.setter
+    def wavelength(self, wavelength: int | Wavelengths) -> None:
+        try:
+            wl = Wavelengths(wavelength)
+        except ValueError:
+            raise ValueError(
+                f"Unsupported wavelength {wavelength}. "
+                f"Available: {[w.value for w in Wavelengths]}"
+            )
+
+        self._check(self._dll.SetWavelength(ctypes.c_int(wl.value)))
+
+        if self.verbose:
+            print(f"[OPM150] Wavelength set to {wl.value} nm")
+
+    def read_power(self) -> float:
+        power = ctypes.c_double()
+        self._check(self._dll.ReadPower(ctypes.byref(power)))
+
+        value = power.value
+
+        if self.power_unit == 0:
+            if self.verbose:
+                print(f"[OPM150] Power: {value:.3f} dBm")
+            return value
+
+        # convert dBm → W
+        linear = 10 ** (value / 10 - 3)
+        if self.verbose:
+            print(f"[OPM150] Power: {linear:.3e} W")
+
+        return linear
+
+    def update_channel_buffer(self) -> None:
+        self._check(self._dll.GetChannelBuffer())
+
+        if self.verbose:
+            print("[OPM150] Channel buffer updated")
+
+    def read_channel_buffer_power(self, channel: int) -> float:
+        if not (1 <= channel <= 24):
+            raise ValueError("Channel must be in range 1–24")
+
+        ch = ctypes.c_int(channel)
+        power = ctypes.c_double()
+
+        self._check(self._dll.ReadChannelBuffer(ch, ctypes.byref(power)))
+
+        value = power.value
+
+        if self.power_unit == 0:
+            return value
+
+        return 10 ** (value / 10 - 3)
+
+    def read_all_channels(self) -> list[float]:
+        self.update_channel_buffer()
+
+        values: list[float] = []
+        for ch in range(1, 25):
+            values.append(self.read_channel_buffer_power(ch))
+
+        if self.verbose:
+            print("[OPM150] Read power from all channels")
+
+        return values
+
+
+if __name__ == "__main__":
+    try:
+        print("=== OPM150 basic test ===")
+
+        pm = OPM150(verbose=True)
+
+        # Basic info
+        print("Active channel:", pm.active_channel)
+        print("Current wavelength:", pm.wavelength)
+
+        # Set safe defaults
+        pm.active_channel = 1
+        pm.wavelength = Wavelengths.nm1550
+
+        # Read power
+        power = pm.read_power()
+        print(f"Measured power: {power:.3f} {'dBm' if pm.power_unit == 0 else 'W'}")
+
+        # Read all channels (buffered)
+        values = pm.read_all_channels()
+        print(f"Read {len(values)} channels")
+        print("First 8 channels:", values[:8])
+
+    except Exception as exc:
+        print(type(exc).__name__, exc)
+
+    finally:
+        try:
+            pm.close()
+        except Exception:
+            pass
