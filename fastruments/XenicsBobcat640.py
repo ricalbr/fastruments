@@ -2,6 +2,7 @@ import ctypes
 import pathlib
 import time
 from typing import Any, Optional, Tuple
+from fastruments.helpers import DllBinder
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +35,7 @@ class XenicsDLL:
     - translating error codes into Python exceptions
     """
 
-    def __init__(self, dll_name str | pathlib.Path = DLL_NAME):
+    def __init__(self, dll_name: str | pathlib.Path = DLL_NAME):
         self._dll_name = dll_name
         self._dll: Optional[ctypes.CDLL] = None
         self._load()
@@ -45,58 +46,37 @@ class XenicsDLL:
         self._dll = ctypes.CDLL(self._dll_name)
         self._bind_functions()
 
-    def _bind(
-        self,
-        name: str,
-        restype: Any,
-        argtypes: Optional[Tuple[Any, ...]] = None,
-    ) -> None:
-        """Bind a function from the DLL.
-
-        Parameters
-        ----------
-        name : str
-            Name of the function in the DLL.
-        restype : Any
-            ctypes return type.
-        argtypes : tuple of Any, optional
-            ctypes argument types.
-        """
-        func = getattr(self._dll, name)
-        func.restype = restype
-        if argtypes is not None:
-            func.argtypes = argtypes
-        setattr(self, name, func)
-
     def _bind_functions(self) -> None:
         """Bind all required DLL functions."""
 
+        binder = DllBinder(self._dll)
+
         # Camera lifecycle
-        self._bind("XC_OpenCamera", ctypes.c_int32)
-        self._bind("XC_CloseCamera", None, (ctypes.c_int32,))
-        self._bind("XC_IsInitialised", ctypes.c_int32, (ctypes.c_int32,))
+        binder.bind(self, "XC_OpenCamera", ctypes.c_int32)
+        binder.bind(self, "XC_CloseCamera", None, (ctypes.c_int32,))
+        binder.bind(self, "XC_IsInitialised", ctypes.c_int32, (ctypes.c_int32,))
 
         # Error handling
-        self._bind(
+        binder.bind(self,
             "XC_ErrorToString",
             ctypes.c_int32,
             (ctypes.c_int32, ctypes.c_char_p, ctypes.c_int32),
         )
 
         # Capture control
-        self._bind("XC_StartCapture", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_StopCapture", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_IsCapturing", ctypes.c_bool, (ctypes.c_int32,))
+        binder.bind(self, "XC_StartCapture", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_StopCapture", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_IsCapturing", ctypes.c_bool, (ctypes.c_int32,))
 
         # Frame information
-        self._bind("XC_GetFrameSize", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_GetFrameType", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_GetWidth", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_GetHeight", ctypes.c_ulong, (ctypes.c_int32,))
-        self._bind("XC_GetMaxValue", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_GetFrameSize", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_GetFrameType", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_GetWidth", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_GetHeight", ctypes.c_ulong, (ctypes.c_int32,))
+        binder.bind(self, "XC_GetMaxValue", ctypes.c_ulong, (ctypes.c_int32,))
 
         # Frame capture
-        self._bind(
+        binder.bind(self,
             "XC_GetFrame",
             ctypes.c_ulong,
             (
@@ -109,25 +89,25 @@ class XenicsDLL:
         )
 
         # Data and devices
-        self._bind(
+        binder.bind(self,
             "XC_SaveData",
             ctypes.c_ulong,
             (ctypes.c_int32, ctypes.c_char_p, ctypes.c_ulong),
         )
-        self._bind(
+        binder.bind(self,
             "XCD_EnumerateDevices",
             ctypes.c_ulong,
             (ctypes.c_int32, ctypes.c_uint, ctypes.c_ulong),
         )
 
         # Calibration and settings
-        self._bind("XC_LoadCalibration", ctypes.c_ulong)
-        self._bind("XC_LoadSettings", ctypes.c_ulong)
-        self._bind("XC_LoadColourProfile", ctypes.c_ulong, (ctypes.c_char_p,))
+        binder.bind(self, "XC_LoadCalibration", ctypes.c_ulong)
+        binder.bind(self, "XC_LoadSettings", ctypes.c_ulong)
+        binder.bind(self, "XC_LoadColourProfile", ctypes.c_ulong, (ctypes.c_char_p,))
 
         # Property access
-        self._bind("XC_SetPropertyValue", ctypes.c_ulong)
-        self._bind(
+        binder.bind(self, "XC_SetPropertyValue", ctypes.c_ulong)
+        binder.bind(self,
             "XC_GetPropertyValueL",
             ctypes.c_ulong,
             (ctypes.c_int32, ctypes.c_char_p, ctypes.POINTER(ctypes.c_ulong)),
