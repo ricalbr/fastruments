@@ -8,7 +8,7 @@ import os
 import logging
 from typing import Literal
 import time
-import math
+import numpy as np
 
 from Instrument import Instrument
 
@@ -57,7 +57,7 @@ class Wavelengths(enum.IntEnum):
     """Commonly supported wavelengths (in nanometers)."""
 
     nm850 = 850
-    nm980 = 980
+    nm925 = 925
     nm1300 = 1300
     nm1310 = 1310
     nm1480 = 1480
@@ -467,50 +467,6 @@ class OPM150(Instrument):
         self._check("GetUSBStatus", _ret)
         return _have_error.value
 
-    # @property
-    # def dll_revision(self) -> int:
-    #     """
-    #     Return the loaded DLL revision number.
-
-    #     Returns
-    #     -------
-    #     int
-    #         DLL revision code.
-    #     """
-    #     _revision = self._dll.GetDLLRev()
-    #     self.logger.debug(f"DLL revision: {_revision}")
-    #     return _revision
-
-    # @property
-    # def fw_revision(self) -> int:
-    #     """
-    #     Return the device firmware revision.
-
-    #     Returns
-    #     -------
-    #     int
-    #         Firmware revision code.
-    #     """
-    #     _revision = self._dll.GetFWRevision()
-    #     self.logger.debug(f"FW revision: {_revision}")
-    #     return _revision
-
-    # @property
-    # def status(self) -> ErrorCodes:
-    #     """
-    #     Get the initialization/status code from the DLL.
-
-    #     Returns
-    #     -------
-    #     ErrorCodes
-    #         Enum representing the DLL/device status.
-    #     """
-    #     _status = ctypes.c_int()
-    #     _status = self._dll.GetDLLStatus()
-    #     # do not raise here; caller can interpret
-    #     self.logger.debug(f"DLL status code: {_status}")
-    #     return ErrorCodes(_status)
-
     @property
     def active_channel(self) -> int:
         """
@@ -626,30 +582,6 @@ class OPM150(Instrument):
         self.logger.debug(f"Analog: {_analog.value}, gain={_gain.value}, mode={_mode.value}")
         return _analog.value
 
-    def _to_power_unit(self, value_dbm: float) -> float:
-        """
-        Convert raw dBm to the correct unit and log the value.
-    
-        Parameters
-        ----------
-        value_dbm : float
-            Power in dBm from the DLL.
-    
-        Returns
-        -------
-        float
-            Power in dBm or W depending on self.power_unit.
-        """
-        if self.power_unit == 0:  # dBm
-            self.logger.debug(f"Power: {value_dbm:.3f} dBm")
-            return value_dbm
-        elif self.power_unit == 1:  # W
-            pw = self._convert_to_linear(value_dbm)
-            self.logger.debug(f"Power: {pw:.3e} W (converted)")
-            return pw
-        else:
-            raise ValueError("power_unit must be either 0 (dBm) or 1 (W).")
-    
     def adc_to_power(self, analog: int, gain: int) -> float:
         """
         Convert raw ADC + gain to optical power.
@@ -669,7 +601,7 @@ class OPM150(Instrument):
         power = ctypes.c_double()
         ret = self._dll.ConvertPower(ctypes.c_int(analog), ctypes.c_int(gain), ctypes.byref(power))
         self._check("ConvertPower", ret)
-        return self._to_power_unit(power.value)
+        return self._to_power_unit(power.value, dbm=True)
 
     def refresh_channels_buffers(self) -> None:
         """
@@ -697,10 +629,10 @@ class OPM150(Instrument):
         ret = self._dll.ReadChannelBuffer(ctypes.c_int(ch), ctypes.byref(power))
         self._check("ReadChannelBuffer", ret)
         self.logger.debug(f"Ch{ch}: {power.value:.3f} raw units")
-        return self._to_power_unit(power.value)
+        return self._to_power_unit(power.value, dbm=True)
     
     def read_power(
-        self, channels: int or list[int] = [i + 1 for i in range(24)], sleep: float = 0.1
+        self, channels: int or list[int] = [i + 1 for i in range(24)], sleep: float = 0.1,
     ) -> list[float]:
         """
         Read power sequentially from a list of channels.
@@ -726,6 +658,7 @@ class OPM150(Instrument):
         powers = [self.buffered_power(ch) for ch in channels]
         self.logger.debug(f"Read {len(channels)} channels: {channels}")
         return powers
+            
 
     def autorange(self, enabled: bool) -> None:
         """
@@ -844,14 +777,50 @@ class OPM150(Instrument):
         _ret = self._dll.SetSamplingSpeed(_speed)
         self._check("SetSamplingSpeed", _ret)
         self.logger.debug(f"Sampling speed set to {speed}")
-
-    def _convert_to_linear(self, value: float) -> float:
-        """Convert power from dBm to W."""
-        return math.pow(10, value / 10 - 3)
-
-    def _convert_to_linear_relative(self, value: float) -> float:
-        """Convert relative power from dB to a linear ratio."""
-        return math.pow(10, value / 10)
+        
+    def _to_power_unit(self, value: float, dbm: bool=False) -> float:
+        """
+        Convert raw dBm to the correct unit and log the value.
+    
+        Parameters
+        ----------
+        value_dbm : float
+            Power in dBm from the DLL.
+    
+        Returns
+        -------
+        float
+            Power in dBm or W depending on self.power_unit.
+        """
+        if self.power_unit == 0:  # dBm
+            self.logger.debug(f"Power: {value:.3f} dBm")
+            return value
+        elif self.power_unit == 1:  # W
+            pw = self._db_to_linear(value, dbm=dbm)
+            self.logger.debug(f"Power: {pw:.3e} W (converted)")
+            return pw
+        else:
+            raise ValueError("power_unit must be either 0 (dBm) or 1 (W).")
+            
+    def _db_to_linear(self, value: float, dbm: bool = False) -> float:
+        """
+        Convert a power value from dB/dBm to linear units.
+    
+        Parameters
+        ----------
+        value : float
+            Input value in dB (for relative power) or dBm (for absolute power).
+        dbm : bool, default=False
+            If True, input is in dBm and output is in Watts.
+            If False, input is in dB and output is a dimensionless ratio.
+    
+        Returns
+        -------
+        float
+            Linear value (Watts if dBm=True, ratio if dbm=False).
+        """
+        factor = -3 if dbm else 0
+        return np.power(10, value / 10 + factor)
 
     def _check(self, func_name: str, err_code: int) -> None:
         """
@@ -870,7 +839,7 @@ class OPM150(Instrument):
 if __name__ == "__main__":
 
     try:
-        pm = OPM150(power_unit=0)
+        pm = OPM150(power_unit=1)
     except RuntimeError as e:
         print(f"Inizialization error: {e}")
         sys.exit(1)
@@ -878,20 +847,18 @@ if __name__ == "__main__":
     try:
         print("\n--- Device Info ---")
         print(f"USB serial number: {pm.USB_serial_number}")
-
-        print("\n--- Temperature ---")
         temp_c = pm.temperature(unit=1)
         print(f"Temperature: {temp_c:.2f} °C")
-        
-        print("\n--- Wavelength ---")
-        pm.wavelength = 1550
+        pm.wavelength = 925
         print(f"Wavelength: {pm.wavelength.value} nm")
-
+        
         print("\n--- Power on multiple channels ---")
         chs = list(range(1,25))
         powers = pm.read_power(channels=chs, sleep=0.2)
         for ch, p in zip(chs, powers):
-            print(f"CH {ch}: {p} dBm")
+            print(f"CH {ch}:\t{p:.3e} W")
+        total_power = np.sum(powers)
+        print(f"Total power: {total_power:.3e} W")
 
     except Exception as e:
         print(f"Communication Error: {e}")
