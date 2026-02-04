@@ -269,7 +269,8 @@ class FiberSwitch(Instrument):
 
         Notes
         -----
-        Should always be called before program termination to release the COM resource.
+        Before closing, the instrument is reset. Should always be called before
+        program termination to release the COM resource.
 
         Raises
         ------
@@ -277,6 +278,7 @@ class FiberSwitch(Instrument):
             If the resource cannot be cleanly closed.
         """
         try:
+            self.reset()
             self.inst.close()
             if self.verbose:
                 print("[LF_OSW] Connection closed.")
