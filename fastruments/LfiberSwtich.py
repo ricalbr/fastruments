@@ -17,7 +17,7 @@ import time
 
 import pyvisa
 from Instrument import Instrument
-
+from fastruments import logger
 
 class FiberSwitch(Instrument):
     """
@@ -38,7 +38,7 @@ class FiberSwitch(Instrument):
         reading the response (default: ``0.1``). This ensures the hardware
         completes the operation.
     verbose : bool, optional
-        If ``True``, prints informational messages (default: ``True``).
+        If ``True``, logs informational messages (default: ``True``).
 
     Attributes
     ----------
@@ -158,7 +158,10 @@ class FiberSwitch(Instrument):
         )  # Parameter idn_str is typically Model+Config (e.g., LF-OSW-1X16-1550-PMF...)
         if len(model_parts) <= 4:  # Check for correct format
             raise ValueError(
-                f"[LF_OSW][ERROR] Could not parse model information from {idn_str}."
+                f"Could not parse model information from {idn_str}."
+            )
+            log.error(
+                f"Could not parse model information from {idn_str}."
             )
         self.model_info = {  # Build information dictionary about the device
             "model": idn_str,
@@ -167,8 +170,8 @@ class FiberSwitch(Instrument):
             "fiber_type": model_parts[4],
         }
         if self.verbose:
-            print(
-                f"[LF_OSW] Model string parsed: Channels: {self.model_info['channels']}, "
+            logger.info(
+                f"Model string parsed: Channels: {self.model_info['channels']}, "
                 f"Wavelength: {self.model_info['wavelength']} nm, Fiber: {self.model_info['fiber_type']}."
             )
         return self.model_info
@@ -206,15 +209,19 @@ class FiberSwitch(Instrument):
                 self.inst.read_termination = self.__END_CHAR  # Read until '>'
                 self.inst.write_termination = None  # We manually add delimiters
         except Exception as e:
+            logger.error(
+                f"Could not connect to fiber switch: {e}."
+            )
             raise ConnectionError(
-                f"[LF_OSW][ERROR] Could not connect to fiber switch: {e}."
+                f"Could not connect to fiber switch: {e}."
             )
         try:
             self.__update_info(self.idn())
             if self.verbose:
-                print("[LF_OSW] Connected successfully.")
+                logger.info("Connection is successful.")
         except Exception as e:
-            raise RuntimeError(f"[LF_OSW][ERROR] Failed to query IDN: {e}.")
+            logger.error(f"Failed to query IDN: {e}.")
+            raise RuntimeError(f"Failed to query IDN: {e}.")
 
     def idn(self) -> str:
         """
@@ -233,12 +240,15 @@ class FiberSwitch(Instrument):
         raw_resp = self.__query_cmd("OSW_TYPE_?")  # Protocol query: <OSW_TYPE_?>
         prefix = "OSW_TYPE_"
         if not raw_resp.startswith(prefix):
+            logger.error(
+                f"Unexpected response format: {raw_resp}."
+            )
             raise RuntimeError(
-                f"[LF_OSW][ERROR] Unexpected response format: {raw_resp}."
+                f"Unexpected response format: {raw_resp}."
             )
         idn_str = raw_resp.replace(prefix, "")
         if self.verbose:
-            print(f"[LF_OSW] IDN: {idn_str}.")
+            logger.info(f"IDN: {idn_str}.")
         return idn_str
 
     def reset(self) -> None:
@@ -259,9 +269,10 @@ class FiberSwitch(Instrument):
         time.sleep(self.transient)  # Wait for hardware switching
         if resp == "OSW_OUT_OK":
             if self.verbose:
-                print("[LF_OSW] Instrument reset (channel 00).")
+                logger.info("Instrument reset (channel 00).")
         else:
-            raise RuntimeError(f"[LF_OSW][ERROR] Reset failed. Response: {resp}.")
+            logger.error(f"Reset failed. Response: {resp}.")
+            raise RuntimeError(f"Reset failed. Response: {resp}.")
 
     def close(self) -> None:
         """
@@ -281,9 +292,10 @@ class FiberSwitch(Instrument):
             self.reset()
             self.inst.close()
             if self.verbose:
-                print("[LF_OSW] Connection closed.")
+                logger.info("Connection closed.")
         except Exception as e:
-            raise RuntimeError(f"[LF_OSW][ERROR] Failed to close connection: {e}.")
+            logger.error(f"Failed to close connection: {e}.")
+            raise RuntimeError(f"Failed to close connection: {e}.")
 
     # ------------------------------------------------------------------
     # Channel control
@@ -307,8 +319,12 @@ class FiberSwitch(Instrument):
             If the instrument reports an error other than overflow.
         """
         if not (1 <= channel <= self.model_info["channels"]):
+            logger.error(
+                f"Invalid channel {channel}. "
+                f"Valid range: 1 to {self.model_info['channels']}."
+            )
             raise ValueError(
-                f"[LF_OSW][ERROR] Invalid channel {channel}. "
+                f"Invalid channel {channel}. "
                 f"Valid range: 1 to {self.model_info['channels']}."
             )
         resp = self.__query_cmd(
@@ -319,12 +335,16 @@ class FiberSwitch(Instrument):
             resp == "OSW_OUT_OK"
         ):  # Validate response (success: <OSW_OUT_OK>, error: <OSW_OUT_OVERFLOW>)
             if self.verbose:
-                print(f"[LF_OSW] Switch set to channel {channel:02d}.")
+                logger.info(f"Switch set to channel {channel:02d}.")
         elif resp == "OSW_OUT_OVERFLOW":
-            raise ValueError("[LF_OSW][ERROR] Channel overflow reported by device.")
+            logger.error("Channel overflow reported by device.")
+            raise ValueError("Channel overflow reported by device.")
         else:
+            logger.error(
+                f"Failed to set channel. Response: {resp}."
+            )
             raise RuntimeError(
-                f"[LF_OSW][ERROR] Failed to set channel. Response: {resp}."
+                f"Failed to set channel. Response: {resp}."
             )
 
     def get_channel(self) -> int:
@@ -346,11 +366,12 @@ class FiberSwitch(Instrument):
         )  # Protocol query: <OSW_OUT_?>, expected response: <OSW_OUT_XX>
         prefix = "OSW_OUT_"
         if not resp.startswith(prefix):
-            raise RuntimeError(f"[LF_OSW][ERROR] Unexpected response format: {resp}.")
+            logger.error(f"Unexpected response format: {resp}.")
+            raise RuntimeError(f"Unexpected response format: {resp}.")
         val_str = resp.replace(prefix, "")
         channel = int(val_str)
         if self.verbose:
-            print(f"[LF_OSW] Current channel: {channel:02d}.")
+            logger.info(f"Current channel: {channel:02d}.")
         return channel
 
 
@@ -374,7 +395,7 @@ if __name__ == "__main__":
     except Exception as e:
         msg = str(e)
         if not msg.startswith("[LF_OSW][ERROR]"):
-            msg = f"[LF_OSW][ERROR] {msg}"
+            msg = f"{msg}"
         print(msg)
 
     finally:
