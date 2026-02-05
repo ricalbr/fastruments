@@ -3,6 +3,7 @@ import pathlib
 import time
 from typing import Optional
 from helpers import DllBinder
+import logger
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,6 +48,7 @@ class XenicsDLL:
         print(self._dll_name)
         self._dll = ctypes.CDLL(self._dll_name, winmode=0)
         self._bind_functions()
+        logger.debug('DLL loaded.')
 
     def _bind_functions(self) -> None:
         """Bind all required DLL functions."""
@@ -492,6 +494,7 @@ class Xenics(Instrument):
         ).reshape((height, width))
 
         Image.fromarray(frame).save(filename)
+        logger.info('Grabbed frame.')
         return frame
 
     def get_pixel_dtype(self):
