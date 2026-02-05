@@ -4,6 +4,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Protocol
 import ctypes
+from fastruments import logger
 
 
 class _HasAttr(Protocol):
@@ -32,3 +33,4 @@ class DllBinder:
             func.argtypes = argtypes  # type: ignore[attr-defined]
 
         setattr(target, name, func)
+        logger.debug(f"Bind {name} function.")
