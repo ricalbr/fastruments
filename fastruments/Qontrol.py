@@ -99,7 +99,7 @@ class Q8iv(Instrument):
         Initialise the Q8iv wrapper and connect to the Qontrol board.
 
         See class docstring for detailed parameter descriptions.
-        
+
         Raises
         ------
         ValueError
@@ -160,7 +160,7 @@ class Q8iv(Instrument):
         ----------
         chans : Sequence of int
             A sequence of channel indices to validate.
-        
+
         Raises
         ------
         ValueError
@@ -241,7 +241,7 @@ class Q8iv(Instrument):
         """
         Establish the low-level communication with the Qontrol board.
 
-        This method initializes the `qontrol.QXOutput` interface using the 
+        This method initializes the `qontrol.QXOutput` interface using the
         provided serial port resource and sets a default response timeout.
 
         Raises
@@ -264,7 +264,7 @@ class Q8iv(Instrument):
         -----
         Before closing, all outputs are automatically set to zero. Should always
         be called before program termination to release the COM resource.
-        
+
         Raises
         ------
         RuntimeError
@@ -303,7 +303,7 @@ class Q8iv(Instrument):
             Zero-indexed channel number(s).
         current : float or Sequence of float
             Target current value(s) in mA.
-            
+
         Raises
         ------
         ValueError
@@ -332,7 +332,7 @@ class Q8iv(Instrument):
     def get_current(self, channel: Union[int, Sequence[int]]) -> List[float]:
         """
         Return current for one or more channels.
-        
+
         Parameters
         ----------
         channel : int or Sequence of int
@@ -347,22 +347,22 @@ class Q8iv(Instrument):
         self.__validate_channel(chans)
         values = [self._q.i[ch] for ch in chans]
         if self.verbose:
-            print(f"[Q8iv] Current on channel {chans}: {values} mA.")         
-        return values   
-    
+            print(f"[Q8iv] Current on channel {chans}: {values} mA.")
+        return values
+
     def set_voltage(
         self, channel: Union[int, Sequence[int]], voltage: Union[float, Sequence[float]]
     ) -> None:
         """
         Set output voltage for one or more channels (V).
-        
+
         Parameters
         ----------
         channel : int or Sequence of int
             Zero-indexed channel number(s).
         voltage : float or Sequence of float
             Target voltage value(s) in volts.
-            
+
         Raises
         ------
         ValueError
@@ -387,11 +387,11 @@ class Q8iv(Instrument):
         if self.verbose:
             print(f"[Q8iv] Channels {chans} set to {volts} V.")
         time.sleep(self.transient)
-        
+
     def get_voltage(self, channel: Union[int, Sequence[int]]) -> List[float]:
         """
         Return voltage for one or more channels.
-        
+
         Parameters
         ----------
         channel : int or Sequence of int
@@ -406,14 +406,13 @@ class Q8iv(Instrument):
         self.__validate_channel(chans)
         values = [self._q.v[ch] for ch in chans]
         if self.verbose:
-            print(f"[Q8iv] Voltage on channel {chans}: {values} V.")   
+            print(f"[Q8iv] Voltage on channel {chans}: {values} V.")
         return values
 
     # ------------------------------------------------------------------
     # Utility operations
     # ------------------------------------------------------------------
-    def set_compliance(
-        self, imax: float, vmax: float) -> None:
+    def set_compliance(self, imax: float, vmax: float) -> None:
         """
         Set current and voltage compliance limits.
 
@@ -423,7 +422,7 @@ class Q8iv(Instrument):
             Current compliance in mA.
         vmax : float
             Voltage compliance in V.
-            
+
         Raises
         ------
         ValueError
@@ -469,14 +468,14 @@ class Q8iv(Instrument):
 if __name__ == "__main__":
 
     drv = None
-    
+
     try:
-        # Initialization       
+        # Initialization
         drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
 
         # Utility operations
         drv.set_compliance(imax=20.0, vmax=10.0)
-        
+
         # Core I/V operations
         drv.set_current(0, 5.0)
         drv.set_current([1, 2], [3.0, 7.5])
@@ -485,7 +484,7 @@ if __name__ == "__main__":
         drv.set_all_zero()
         drv.get_current([0, 1, 2])
         drv.get_voltage([0, 1, 2])
-        
+
     except Exception as e:
         msg = str(e)
         if not msg.startswith("[Q8iv][ERROR]"):

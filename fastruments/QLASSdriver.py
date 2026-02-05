@@ -1,7 +1,7 @@
 """
 QLASS DRIVER
-  
-This module provides a high-level Python interface for controlling the 
+
+This module provides a high-level Python interface for controlling the
 16-channel QLASS current driver via RS-232/USB serial communication. The board
 was devoleped at DEIB (contacts: Giulia Acconcia, Ivan Labanca).
 
@@ -10,12 +10,13 @@ by the DEIB team.
 
 The driver supports two primary operation modes:
 1. Static Mode: for setting constant DC current values.
-2. Timing Mode: for composing arbitrary piecewise-constant current sequences 
+2. Timing Mode: for composing arbitrary piecewise-constant current sequences
    within the device's operational range.
 """
 
 import pyvisa
 from Instrument import Instrument
+
 
 class CurrentDriver(Instrument):
     """
@@ -60,10 +61,10 @@ class CurrentDriver(Instrument):
             self.inst.parity = pyvisa.constants.Parity.none
             self.inst.stop_bits = pyvisa.constants.StopBits.one
             self.inst.flow_control = pyvisa.constants.ControlFlow.none
-            self.inst.timeout = self.timeout            
+            self.inst.timeout = self.timeout
             # Common terminators for serial interfaces
-            self.inst.read_termination = '\n'
-            self.inst.write_termination = '\n'            
+            self.inst.read_termination = "\n"
+            self.inst.write_termination = "\n"
         except Exception as e:
             raise ConnectionError(
                 f"[QLASS][ERROR] Could not connect to current driver: {e}."
@@ -127,17 +128,17 @@ class CurrentDriver(Instrument):
 if __name__ == "__main__":
 
     drv = None
-    
+
     try:
         # Initialization on COM5
         drv = CurrentDriver("COM5", timeout=2000, verbose=True)
 
         # Basic identification
         drv.idn()
-        
+
         # Placeholder for future core operations
         # drv.set_current(10.0)
-        
+
     except Exception as e:
         print(f"{e}")
 

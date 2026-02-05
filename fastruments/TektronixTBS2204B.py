@@ -176,8 +176,8 @@ class TBS2204B(Instrument):
         Establish the VISA connection with the oscilloscope.
 
         This method initializes the VISA Resource Manager, opens the USB
-        connection to the instrument, and configures the communication 
-        timeout. It also performs an identification query to ensure 
+        connection to the instrument, and configures the communication
+        timeout. It also performs an identification query to ensure
         the instrument is responsive.
 
         Raises
@@ -1068,7 +1068,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     scope = None
-    
+
     try:
         # Initialization
         scope = TBS2204B("USB::0x0699::0x03C7::C010302::INSTR", verbose=True)
@@ -1119,7 +1119,7 @@ if __name__ == "__main__":
         scope.get_acquisition_state()
         scope.single_acquisition()
         scope.get_acquisition_state()
-        
+
         # Data retrieval and plotting
         t, v = scope.get_waveform(2)
         plt.plot(t, v)

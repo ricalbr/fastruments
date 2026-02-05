@@ -98,8 +98,8 @@ class AFG3011C(Instrument):
         """
         Establish the VISA connection with the function generator.
 
-        This method initializes the VISA Resource Manager, opens the USB 
-        resource, and sets the communication timeout. It also performs an 
+        This method initializes the VISA Resource Manager, opens the USB
+        resource, and sets the communication timeout. It also performs an
         initial identification query to verify the connection.
 
         Raises
@@ -471,7 +471,7 @@ class AFG3011C(Instrument):
 if __name__ == "__main__":
 
     afg = None
-    
+
     try:
         # Initialization
         afg = AFG3011C("USB::0x0699::0x034F::C020348::INSTR", verbose=True)
@@ -506,7 +506,7 @@ if __name__ == "__main__":
         if not msg.startswith("[AFG3011C][ERROR]"):
             msg = f"[AFG3011C][ERROR] {msg}"
         print(msg)
-        
+
     finally:
         if afg is not None:
             afg.close()

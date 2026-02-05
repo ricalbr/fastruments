@@ -65,9 +65,11 @@ class Wavelengths(enum.IntEnum):
     nm1625 = 1625
     nm1650 = 1650
 
+
 CWD = pathlib.Path(__file__).resolve().parent
 os.add_dll_directory(CWD / "dll")
 DLL_NAME = "OP710M_64.dll"
+
 
 class SantecDLL:
     """Low-level ctypes wrapper for the Santec OP150 Power Meter.
@@ -125,7 +127,12 @@ class SantecDLL:
         binder.bind(
             self, "GetUSBStatus", ctypes.c_int, (ctypes.POINTER(ctypes.c_bool),)
         )
-        binder.bind(self, "GetTemperature", ctypes.c_int, (ctypes.POINTER(ctypes.c_double), ctypes.c_int))
+        binder.bind(
+            self,
+            "GetTemperature",
+            ctypes.c_int,
+            (ctypes.POINTER(ctypes.c_double), ctypes.c_int),
+        )
 
         # Module / device info
         binder.bind(self, "GetModuleID", ctypes.c_int, (ctypes.POINTER(ctypes.c_int),))
@@ -268,7 +275,9 @@ class OPM150(Instrument):
     - Autorange and gain settings are shared between adjacent channels.
     """
 
-    def __init__(self, dll: SantecDLL = SantecDLL(), verbose: bool = True, power_unit=1):
+    def __init__(
+        self, dll: SantecDLL = SantecDLL(), verbose: bool = True, power_unit=1
+    ):
         """
         Initialize communication with the OPM150 (OP-710 family).
 
@@ -289,23 +298,23 @@ class OPM150(Instrument):
         self.verbose = verbose
         self.power_unit = power_unit
         self.device_number = None
-        self.available_wavelengths = Wavelengths # available wavelengths enum from DLL
+        self.available_wavelengths = Wavelengths  # available wavelengths enum from DLL
         # self.active_channel = 1 # ensure active_channel is set explicitly (DLL getter may reset on reopen)
         self._dll = dll
-        
+
         self._is_connection_open = False
         self._sampling_speed = None  # probably channel-related; untested here
         self.remote_mode = True
-        
+
         self.connect()
-        
+
     def connect(self):
         device_count = self.USB_device_count
         self.logger.debug(f"Device count : {device_count}")
 
         self.device_number = next(
             (
-                i 
+                i
                 for i in range(device_count)
                 if "OP710" in self.get_USB_device_description(i)
             ),
@@ -321,7 +330,6 @@ class OPM150(Instrument):
         self.logger.debug(f"USB Handle : {self._handle}")
         self._is_connection_open = self.open_driver(self._handle)
         self.logger.debug(f"Is connection open : {self._is_connection_open}")
-
 
     def close(self) -> None:
         """
@@ -375,8 +383,8 @@ class OPM150(Instrument):
         _ret = self._dll.OpenUSBDevice(ctypes.c_int(dev_number), ctypes.byref(handle))
         self._check("OpenUSBDevice", _ret)
         self.logger.debug(
-             f"OpenUSBDevice(dev_number={dev_number}) -> handle={handle.value}"
-         )
+            f"OpenUSBDevice(dev_number={dev_number}) -> handle={handle.value}"
+        )
         return handle.value
 
     def open_driver(self, handle: int = 0) -> bool:
@@ -429,7 +437,9 @@ class OPM150(Instrument):
         """
         _description = ctypes.c_char_p()
         _dev_number = ctypes.c_int(dev_number)
-        _ret = self._dll.GetUSBDeviceDescription(_dev_number, ctypes.byref(_description))
+        _ret = self._dll.GetUSBDeviceDescription(
+            _dev_number, ctypes.byref(_description)
+        )
         self._check("GetUSBDeviceDescription", _ret)
         desc = _description.value.decode("UTF-8")
         self.logger.debug(f"Device[{dev_number}] description: {desc}")
@@ -533,7 +543,9 @@ class OPM150(Instrument):
         wl = ctypes.c_int()
         idx = ctypes.c_int()
         ct = ctypes.c_int()
-        _ret = self._dll.GetWavelength(ctypes.byref(wl), ctypes.byref(idx), ctypes.byref(ct))
+        _ret = self._dll.GetWavelength(
+            ctypes.byref(wl), ctypes.byref(idx), ctypes.byref(ct)
+        )
         self._check("GetWavelength", _ret)
         self.logger.debug(f"Wavelength: {wl.value} nm (index={idx.value}).")
         return Wavelengths(wl.value)
@@ -577,29 +589,35 @@ class OPM150(Instrument):
         _analog = ctypes.c_int()
         _gain = ctypes.c_int()
         _mode = ctypes.c_int()
-        _ret = self._dll.ReadAnalog(ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode))
+        _ret = self._dll.ReadAnalog(
+            ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode)
+        )
         self._check("ReadAnalog", _ret)
-        self.logger.debug(f"Analog: {_analog.value}, gain={_gain.value}, mode={_mode.value}")
+        self.logger.debug(
+            f"Analog: {_analog.value}, gain={_gain.value}, mode={_mode.value}"
+        )
         return _analog.value
 
     def adc_to_power(self, analog: int, gain: int) -> float:
         """
         Convert raw ADC + gain to optical power.
-    
+
         Parameters
         ----------
         analog : int
             Raw ADC value (from read_analog).
         gain : int
             Channel gain (0–7).
-    
+
         Returns
         -------
         float
             Power in dBm or W depending on self.power_unit.
         """
         power = ctypes.c_double()
-        ret = self._dll.ConvertPower(ctypes.c_int(analog), ctypes.c_int(gain), ctypes.byref(power))
+        ret = self._dll.ConvertPower(
+            ctypes.c_int(analog), ctypes.c_int(gain), ctypes.byref(power)
+        )
         self._check("ConvertPower", ret)
         return self._to_power_unit(power.value, dbm=True)
 
@@ -614,12 +632,12 @@ class OPM150(Instrument):
     def buffered_power(self, ch: int) -> float:
         """
         Read buffered power measurement for a specific channel.
-    
+
         Parameters
         ----------
         ch : int
             Channel number (1–24). `refresh_channel_buffer()` must be called before.
-    
+
         Returns
         -------
         float
@@ -630,20 +648,22 @@ class OPM150(Instrument):
         self._check("ReadChannelBuffer", ret)
         self.logger.debug(f"Ch{ch}: {power.value:.3f} raw units")
         return self._to_power_unit(power.value, dbm=True)
-    
+
     def read_power(
-        self, channels: int or list[int] = [i + 1 for i in range(24)], sleep: float = 0.1,
+        self,
+        channels: int or list[int] = [i + 1 for i in range(24)],
+        sleep: float = 0.1,
     ) -> list[float]:
         """
         Read power sequentially from a list of channels.
-    
+
         Parameters
         ----------
         channels : int, list[int], default=[1..24]
             List of channels to read (1-based).
         sleep : float, default=0.1
             Delay (s) between reads, required by hardware timing.
-    
+
         Returns
         -------
         list[float]
@@ -651,14 +671,13 @@ class OPM150(Instrument):
         """
         self.refresh_channels_buffers()
         time.sleep(sleep)
-        
+
         if isinstance(channels, int):
             channels = [channels]
-            
+
         powers = [self.buffered_power(ch) for ch in channels]
         self.logger.debug(f"Read {len(channels)} channels: {channels}")
         return powers
-            
 
     def autorange(self, enabled: bool) -> None:
         """
@@ -676,7 +695,9 @@ class OPM150(Instrument):
         _range = ctypes.c_int(1) if enabled else ctypes.c_int(0)
         _ret = self._dll.SetAutoRange(_range)
         self._check("SetAutoRange", _ret)
-        self.logger.debug(f"Autorange {'enabled' if enabled else 'disabled'} on active channel.")
+        self.logger.debug(
+            f"Autorange {'enabled' if enabled else 'disabled'} on active channel."
+        )
 
     def autorange_all(self, enabled: bool) -> None:
         """
@@ -698,7 +719,9 @@ class OPM150(Instrument):
             time.sleep(0.05)
             self.autorange(enabled)
         self.active_channel = _current
-        self.logger.debug(f"Autorange {'enabled' if enabled else 'disabled'} for all channels.")
+        self.logger.debug(
+            f"Autorange {'enabled' if enabled else 'disabled'} for all channels."
+        )
 
     @property
     def gain(self) -> int:
@@ -713,7 +736,9 @@ class OPM150(Instrument):
         _analog = ctypes.c_int()
         _gain = ctypes.c_int()
         _mode = ctypes.c_int()
-        _ret = self._dll.ReadAnalog(ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode))
+        _ret = self._dll.ReadAnalog(
+            ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode)
+        )
         self._check("ReadAnalog", _ret)
         self.logger.debug(f"Gain (ch={self.active_channel}): {_gain.value}")
         return _gain.value
@@ -744,9 +769,9 @@ class OPM150(Instrument):
         """
         _current = self.active_channel
         for i in range(1, 25):
-           self.active_channel = i
-           time.sleep(0.05)
-           self.gain = gain
+            self.active_channel = i
+            time.sleep(0.05)
+            self.gain = gain
         self.active_channel = _current
         self.logger.debug(f"Gain set to {gain} for all channels")
 
@@ -777,16 +802,16 @@ class OPM150(Instrument):
         _ret = self._dll.SetSamplingSpeed(_speed)
         self._check("SetSamplingSpeed", _ret)
         self.logger.debug(f"Sampling speed set to {speed}")
-        
-    def _to_power_unit(self, value: float, dbm: bool=False) -> float:
+
+    def _to_power_unit(self, value: float, dbm: bool = False) -> float:
         """
         Convert raw dBm to the correct unit and log the value.
-    
+
         Parameters
         ----------
         value_dbm : float
             Power in dBm from the DLL.
-    
+
         Returns
         -------
         float
@@ -801,11 +826,11 @@ class OPM150(Instrument):
             return pw
         else:
             raise ValueError("power_unit must be either 0 (dBm) or 1 (W).")
-            
+
     def _db_to_linear(self, value: float, dbm: bool = False) -> float:
         """
         Convert a power value from dB/dBm to linear units.
-    
+
         Parameters
         ----------
         value : float
@@ -813,7 +838,7 @@ class OPM150(Instrument):
         dbm : bool, default=False
             If True, input is in dBm and output is in Watts.
             If False, input is in dB and output is a dimensionless ratio.
-    
+
         Returns
         -------
         float
@@ -834,7 +859,7 @@ class OPM150(Instrument):
         code = ErrorCodes(err_code)
         if code not in (ErrorCodes.OK_0, ErrorCodes.OK_1):
             raise Exception(f"[OPM150] {func_name} failed: {code.name}")
-            
+
 
 if __name__ == "__main__":
 
@@ -851,9 +876,9 @@ if __name__ == "__main__":
         print(f"Temperature: {temp_c:.2f} °C")
         pm.wavelength = 925
         print(f"Wavelength: {pm.wavelength.value} nm")
-        
+
         print("\n--- Power on multiple channels ---")
-        chs = list(range(1,25))
+        chs = list(range(1, 25))
         powers = pm.read_power(channels=chs, sleep=0.2)
         for ch, p in zip(chs, powers):
             print(f"CH {ch}:\t{p:.3e} W")
@@ -865,4 +890,3 @@ if __name__ == "__main__":
 
     finally:
         pm.close()
-

@@ -180,9 +180,9 @@ class FiberSwitch(Instrument):
         """
         Establish the VISA connection and configure serial parameters.
 
-        This method initializes the PyVISA resource manager, opens the 
-        specified resource, and sets the baud rate, parity, and termination 
-        characters required by the Lfiber protocol. It also calls 'idn()' 
+        This method initializes the PyVISA resource manager, opens the
+        specified resource, and sets the baud rate, parity, and termination
+        characters required by the Lfiber protocol. It also calls 'idn()'
         to populate 'model_info'.
 
         Raises
@@ -357,7 +357,7 @@ class FiberSwitch(Instrument):
 if __name__ == "__main__":
 
     osw = None
-    
+
     try:
         # Initialization
         osw = FiberSwitch("ASRL3::INSTR", transient=0.1, verbose=True)
@@ -370,13 +370,13 @@ if __name__ == "__main__":
         osw.get_channel()
         osw.set_channel(5)
         osw.get_channel()
-        
+
     except Exception as e:
         msg = str(e)
         if not msg.startswith("[LF_OSW][ERROR]"):
             msg = f"[LF_OSW][ERROR] {msg}"
         print(msg)
-        
+
     finally:
         if osw is not None:
             osw.close()

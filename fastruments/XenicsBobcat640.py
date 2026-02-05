@@ -452,9 +452,7 @@ class Xenics(Instrument):
             # LOG no setting loaded.
             return
         else:
-            self._dll._check_error(
-                self._dll.XC_LoadSettings(self._cam, fname.encode())
-            )
+            self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode()))
 
     def grab_frame(self, filename: str):
         """Acquire a single frame and save it to disk.
