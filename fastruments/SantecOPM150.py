@@ -86,7 +86,7 @@ class SantecDLL:
     # DLL loading and binding
     def _load(self) -> None:
         """Load the DLL and bind all functions."""
-        self._dll = ctypes.CDLL(self._dll_name)
+        self._dll = ctypes.CDLL(self._dll_name, winmode=0)
         self._bind_functions()
 
     def _bind_functions(self) -> None:

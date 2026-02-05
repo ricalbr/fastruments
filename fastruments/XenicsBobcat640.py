@@ -1,19 +1,18 @@
 import ctypes
 import pathlib
 import time
-from typing import Any, Optional, Tuple
-from fastruments.helpers import DllBinder
+from typing import Optional
+from helpers import DllBinder
 
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import pathlib
 import os
 
 from Instrument import Instrument
 
 CWD = pathlib.Path(__file__).resolve().parent
-os.add_dll_directory(CWD)
+os.add_dll_directory(CWD / "dll")
 DLL_NAME = "xeneth64.dll"
 CAL_PATH = (
     r"C:\Program Files\Xeneth\Calibrations\XC-(31-10-2017)-HG-ITR-500us_10331.xca"
@@ -45,7 +44,8 @@ class XenicsDLL:
     # DLL loading and binding
     def _load(self) -> None:
         """Load the DLL and bind all functions."""
-        self._dll = ctypes.CDLL(self._dll_name)
+        print(self._dll_name)
+        self._dll = ctypes.CDLL(self._dll_name, winmode=0)
         self._bind_functions()
 
     def _bind_functions(self) -> None:
@@ -157,11 +157,11 @@ class XenicsDLL:
             )
         )
 
-    def load_calibration(self) -> None:
-        self._check_error(self._dll.XC_LoadCalibration())
+    # def load_calibration(self) -> None:
+    #     self._check_error(self._dll.XC_LoadCalibration())
 
-    def load_settings(self) -> None:
-        self._check_error(self._dll.XC_LoadSettings())
+    # def load_settings(self) -> None:
+    #     self._check_error(self._dll.XC_LoadSettings())
 
 
 class Xenics(Instrument):
@@ -286,6 +286,30 @@ class Xenics(Instrument):
         height = int(self._dll.XC_GetHeight(self._cam))
 
         return height, width
+
+    @property
+    def width(self) -> int:
+        """Return frame width.
+
+        Returns
+        -------
+        int
+            Frame width.
+        """
+        self._require_open()
+        return int(self._dll.XC_GetWidth(self._cam))
+
+    @property
+    def height(self) -> int:
+        """Return frame height.
+
+        Returns
+        -------
+        int
+            Frame height.
+        """
+        self._require_open()
+        return int(self._dll.XC_GetHeight(self._cam))
 
     @property
     def frame_type(self) -> int:
@@ -428,9 +452,8 @@ class Xenics(Instrument):
             # LOG no setting loaded.
             return
         else:
-            flag = 1  # Ignore settings that do not affect the image
             self._dll._check_error(
-                self._dll.XC_LoadSettings(self._cam, fname.encode(), flag)
+                self._dll.XC_LoadSettings(self._cam, fname.encode())
             )
 
     def grab_frame(self, filename: str):
