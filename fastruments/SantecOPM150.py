@@ -9,6 +9,7 @@ import logging
 from typing import Literal
 import time
 import numpy as np
+from fastruments import logger
 
 from Instrument import Instrument
 
@@ -84,12 +85,14 @@ class SantecDLL:
         self._dll_name = dll_name
         self._dll: Optional[ctypes.CDLL] = None
         self._load()
+        logger.debug('DLL loaded.')
 
     # DLL loading and binding
     def _load(self) -> None:
         """Load the DLL and bind all functions."""
-        self._dll = ctypes.CDLL(self._dll_name, winmode=0)
+        self._dll = ctypes.CDLL(self._dll_name, winmode=None)
         self._bind_functions()
+        logger.debug('DLL functions binded.')
 
     def _bind_functions(self) -> None:
         """Bind all required DLL functions."""
@@ -294,7 +297,6 @@ class OPM150(Instrument):
         - Opens the USB device and initializes the DLL driver.
         - Sets `remote_mode = True` and initializes internal defaults.
         """
-        self.logger = logging.getLogger(__name__)
         self.verbose = verbose
         self.power_unit = power_unit
         self.device_number = None
@@ -307,10 +309,11 @@ class OPM150(Instrument):
         self.remote_mode = True
 
         self.connect()
+        logger.debug('Power meter connected.')
 
     def connect(self):
         device_count = self.USB_device_count
-        self.logger.debug(f"Device count : {device_count}")
+        logger.debug(f"Device count : {device_count}")
 
         self.device_number = next(
             (
@@ -321,15 +324,17 @@ class OPM150(Instrument):
             None,
         )
         if self.device_number is None:
-            raise RuntimeError("[OPM150] No OP710 device found")
+            logger.error("No OP710 device found.")
+            raise RuntimeError("No OP710 device found.")
         else:
-            self.logger.debug(f"Device number : {self.device_number}")
+            logger.debug(f"Device number : {self.device_number}")
 
         # open USB device and driver
         self._handle = self.open_USB_device(self.device_number)
-        self.logger.debug(f"USB Handle : {self._handle}")
+        logger.debug(f"USB Handle : {self._handle}")
         self._is_connection_open = self.open_driver(self._handle)
-        self.logger.debug(f"Is connection open : {self._is_connection_open}")
+        logger.debug(f"Is connection open : {self._is_connection_open}")
+        logger.info(f"Power Meter {self._handle} is connected.")
 
     def close(self) -> None:
         """
@@ -344,7 +349,7 @@ class OPM150(Instrument):
             _ret = self._dll.CloseDriver()
             self._check("CloseDriver", _ret)
             self._is_connection_open = False
-            self.logger.info("Driver closed.")
+            self.logger.info("Power meter connection has been closed.")
 
     def get_module_USB_handle(self, module: int) -> int:
         """
@@ -442,7 +447,7 @@ class OPM150(Instrument):
         )
         self._check("GetUSBDeviceDescription", _ret)
         desc = _description.value.decode("UTF-8")
-        self.logger.debug(f"Device[{dev_number}] description: {desc}")
+        logger.debug(f"Device[{dev_number}] description: {desc}")
         return desc
 
     @property
@@ -490,7 +495,7 @@ class OPM150(Instrument):
         _ch = ctypes.c_int()
         _ret = self._dll.GetActiveChannel(ctypes.byref(_ch))
         self._check("GetActiveChannel", _ret)
-        self.logger.debug(f"Active channel: {_ch.value}")
+        logger.debug(f"Active channel: {_ch.value}")
         return _ch.value
 
     @active_channel.setter
@@ -505,7 +510,7 @@ class OPM150(Instrument):
         """
         _ret = self._dll.SetActiveChannel(ctypes.c_int(ch))
         self._check("SetActiveChannel", _ret)
-        self.logger.debug(f"Active channel set to {ch}.")
+        logger.debug(f"Active channel set to {ch}.")
 
     def temperature(self, unit: Literal[0, 1, 2] = 1) -> float:
         """
@@ -527,7 +532,7 @@ class OPM150(Instrument):
         temperature = ctypes.c_double()
         _ret = self._dll.GetTemperature(ctypes.byref(temperature), unit)
         self._check("GetTemperature", _ret)
-        self.logger.debug(f"Temperature: {temperature.value:.2f} (unit={unit}).")
+        logger.debug(f"Temperature: {temperature.value:.2f} (unit={unit}).")
         return temperature.value
 
     @property
@@ -547,7 +552,7 @@ class OPM150(Instrument):
             ctypes.byref(wl), ctypes.byref(idx), ctypes.byref(ct)
         )
         self._check("GetWavelength", _ret)
-        self.logger.debug(f"Wavelength: {wl.value} nm (index={idx.value}).")
+        logger.debug(f"Wavelength: {wl.value} nm (index={idx.value}).")
         return Wavelengths(wl.value)
 
     @wavelength.setter
@@ -575,7 +580,7 @@ class OPM150(Instrument):
         _wavelength = ctypes.c_int(wl.value)
         _ret = self._dll.SetWavelength(_wavelength)
         self._check("SetWavelength", _ret)
-        self.logger.debug(f"Wavelength set to {wl.value} nm")
+        logger.debug(f"Wavelength set to {wl.value} nm")
 
     def read_adc(self) -> int:
         """
@@ -593,7 +598,7 @@ class OPM150(Instrument):
             ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode)
         )
         self._check("ReadAnalog", _ret)
-        self.logger.debug(
+        logger.debug(
             f"Analog: {_analog.value}, gain={_gain.value}, mode={_mode.value}"
         )
         return _analog.value
@@ -625,10 +630,25 @@ class OPM150(Instrument):
         """
         Acquire power for all channels simultaneously and update internal buffers.
         """
-        _ret = self._dll.GetChannelBuffer()
+    
+        max_iter = 5
+        delay = 0.2
+        ERROR_CODE = -1
+    
+        _ret = ERROR_CODE
+    
+        for t in range(max_iter):
+            _ret = self._dll.GetChannelBuffer()
+    
+            if _ret != ERROR_CODE:
+                break
+    
+            logger.warning(f"GetChannelBuffer failed at iteration {t+1}")
+            time.sleep(delay)
+    
         self._check("GetChannelBuffer", _ret)
-        self.logger.debug("Channel buffer updated.")
-
+        logger.debug("Channel buffer updated.")
+    
     def buffered_power(self, ch: int) -> float:
         """
         Read buffered power measurement for a specific channel.
@@ -646,7 +666,7 @@ class OPM150(Instrument):
         power = ctypes.c_double()
         ret = self._dll.ReadChannelBuffer(ctypes.c_int(ch), ctypes.byref(power))
         self._check("ReadChannelBuffer", ret)
-        self.logger.debug(f"Ch{ch}: {power.value:.3f} raw units")
+        logger.debug(f"Ch{ch}: {power.value:.3f} raw units")
         return self._to_power_unit(power.value, dbm=True)
 
     def read_power(
@@ -676,7 +696,7 @@ class OPM150(Instrument):
             channels = [channels]
 
         powers = [self.buffered_power(ch) for ch in channels]
-        self.logger.debug(f"Read {len(channels)} channels: {channels}")
+        logger.debug(f"Read {len(channels)} channels: {channels}")
         return powers
 
     def autorange(self, enabled: bool) -> None:
@@ -695,7 +715,7 @@ class OPM150(Instrument):
         _range = ctypes.c_int(1) if enabled else ctypes.c_int(0)
         _ret = self._dll.SetAutoRange(_range)
         self._check("SetAutoRange", _ret)
-        self.logger.debug(
+        logger.debug(
             f"Autorange {'enabled' if enabled else 'disabled'} on active channel."
         )
 
@@ -719,7 +739,7 @@ class OPM150(Instrument):
             time.sleep(0.05)
             self.autorange(enabled)
         self.active_channel = _current
-        self.logger.debug(
+        logger.debug(
             f"Autorange {'enabled' if enabled else 'disabled'} for all channels."
         )
 
@@ -740,7 +760,7 @@ class OPM150(Instrument):
             ctypes.byref(_analog), ctypes.byref(_gain), ctypes.byref(_mode)
         )
         self._check("ReadAnalog", _ret)
-        self.logger.debug(f"Gain (ch={self.active_channel}): {_gain.value}")
+        logger.debug(f"Gain (ch={self.active_channel}): {_gain.value}")
         return _gain.value
 
     @gain.setter
@@ -756,7 +776,7 @@ class OPM150(Instrument):
         _gain = ctypes.c_int(gain)
         _ret = self._dll.SetGain(_gain)
         self._check("SetGain", _ret)
-        self.logger.debug(f"Gain set to {gain} (Auto-Range disabled)")
+        logger.debug(f"Gain set to {gain} (Auto-Range disabled)")
 
     def gain_all(self, gain: Literal[0, 1, 2, 3, 4, 5, 6, 7]) -> None:
         """
@@ -773,7 +793,7 @@ class OPM150(Instrument):
             time.sleep(0.05)
             self.gain = gain
         self.active_channel = _current
-        self.logger.debug(f"Gain set to {gain} for all channels")
+        logger.debug(f"Gain set to {gain} for all channels")
 
     @property
     def sampling_speed(self) -> Optional[int]:
@@ -801,7 +821,7 @@ class OPM150(Instrument):
         _speed = ctypes.c_byte(speed)
         _ret = self._dll.SetSamplingSpeed(_speed)
         self._check("SetSamplingSpeed", _ret)
-        self.logger.debug(f"Sampling speed set to {speed}")
+        logger.debug(f"Sampling speed set to {speed}")
 
     def _to_power_unit(self, value: float, dbm: bool = False) -> float:
         """
@@ -818,11 +838,11 @@ class OPM150(Instrument):
             Power in dBm or W depending on self.power_unit.
         """
         if self.power_unit == 0:  # dBm
-            self.logger.debug(f"Power: {value:.3f} dBm")
+            logger.debug(f"Power: {value:.3f} dBm")
             return value
         elif self.power_unit == 1:  # W
             pw = self._db_to_linear(value, dbm=dbm)
-            self.logger.debug(f"Power: {pw:.3e} W (converted)")
+            logger.debug(f"Power: {pw:.3e} W (converted)")
             return pw
         else:
             raise ValueError("power_unit must be either 0 (dBm) or 1 (W).")
@@ -858,7 +878,8 @@ class OPM150(Instrument):
         """
         code = ErrorCodes(err_code)
         if code not in (ErrorCodes.OK_0, ErrorCodes.OK_1):
-            raise Exception(f"[OPM150] {func_name} failed: {code.name}")
+            logger.error(f"{func_name} failed: {code.name}")
+            raise Exception(f"{func_name} failed: {code.name}")
 
 
 if __name__ == "__main__":

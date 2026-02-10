@@ -152,15 +152,14 @@ class FiberSwitch(Instrument):
         ValueError
             If the model string has unexpected format.
         """
-        #
-        model_parts = idn_str.split(
-            "-"
-        )  # Parameter idn_str is typically Model+Config (e.g., LF-OSW-1X16-1550-PMF...)
+        
+        # Parameter idn_str is typically Model+Config (e.g., LF-OSW-1X16-1550-PMF...)
+        model_parts = idn_str.split("-")  
         if len(model_parts) <= 4:  # Check for correct format
-            raise ValueError(
+            logger.error(
                 f"Could not parse model information from {idn_str}."
             )
-            log.error(
+            raise ValueError(
                 f"Could not parse model information from {idn_str}."
             )
         self.model_info = {  # Build information dictionary about the device
