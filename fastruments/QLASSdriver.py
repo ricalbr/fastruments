@@ -15,8 +15,11 @@ The driver supports two primary operation modes:
 """
 
 import pyvisa
+from pyvisa.constants import BufferOperation
 from Instrument import Instrument
 from typing import List, Optional, Sequence, Union
+import numpy as np
+import time
 
 
 class CurrentDriver(Instrument):
@@ -53,6 +56,7 @@ class CurrentDriver(Instrument):
         self.verbose = verbose
         self.do_autoupdate = do_autoupdate
         self.inst = None
+        self.sleep = 0.010
         self.connect()
 
     def connect(self) -> None:
@@ -74,10 +78,10 @@ class CurrentDriver(Instrument):
             self.inst.timeout = self.timeout
             # Dictionary containing pairings between FSR code and corresponding current compliance
             self.ranges = {0:2.77,
-                           1:25,
+                           1:25.0,
                            2:47.72}
             # Common terminators for serial interfaces
-            self.inst.read_termination = "\r"
+            self.inst.read_termination = "\n\r"
             self.inst.write_termination = "\r"
         except Exception as e:
             raise ConnectionError(
@@ -115,9 +119,57 @@ class CurrentDriver(Instrument):
         Reset the instrument to factory default settings.
         """
         self.inst.write("$R")
+        #Reset returns three lines: b'Reset...\n\r$M=>Menu\n\rReady\n\r'
+        #To ensure buffer is empty after resetting, we do this:
+        res = None
+        while res!= 'Ready':
+            res = self.inst.read()
+
+        self.flush_serial()
         if self.verbose:
             print("[QLASS] Instrument reset.")
-    
+
+    def flush_serial(self):
+        """
+        Flushes read serial buffer.
+
+        Notes
+        -----
+        Since the serial buffer is emptied FIFO, it is best to ensure that the
+        buffer is emptied via this method before sending a query in order to 
+        ensure that the response is correct.
+        """
+        self.inst.flush(BufferOperation.discard_read_buffer)
+        if self.verbose:
+            print('[QLASS] Read buffer flushed.')
+
+
+    def close(self) -> None:
+        """
+        Close the VISA connection to the instrument.
+
+        Notes
+        -----
+        Should always be called before program termination to release the COM resource.
+
+        Raises
+        ------
+        RuntimeError
+            If the resource cannot be cleanly closed.
+        """
+        try:
+            self.inst.close()
+            if self.verbose:
+                print("[QLASS] Connection closed.")
+        except Exception as e:
+            raise RuntimeError(f"[QLASS][ERROR] Failed to close connection: {e}.")
+        
+
+    # ------------------------------------------------------
+    # Methods for current driver operation.
+    # ------------------------------------------------------
+
+        
     def set_current(self,ch: int,val: float) -> str:
         """
         Sets a current value in mA to a specified channel.
@@ -144,7 +196,7 @@ class CurrentDriver(Instrument):
 
         """
         # Retrieve current operating range
-        max_current = self.range()
+        max_current = self.range
 
         #Input sanity check
         if ch >= 16 or ch<0:
@@ -159,7 +211,7 @@ class CurrentDriver(Instrument):
         res = self.inst.query(f'$D{ch:02d},{val_DAC}')
         #Catch failed current application
         if res == 'Ready':
-            print(f'[QLASS][ERROR] set_current_mA(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
+            print(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
         else:
             if self.verbose:
                 print(f'[QLASS] Current at channel {ch} set to {val}mA (DAC value = {val_DAC}).')
@@ -186,6 +238,7 @@ class CurrentDriver(Instrument):
         -------
         str
             The response string returned by the instrument.
+
         Raises
         ------
         ValueError
@@ -194,7 +247,7 @@ class CurrentDriver(Instrument):
 
         """
         # Retrieve current operating range
-        max_current = self.range()
+        max_current = self.range
 
         #Input sanity check
         if ch >= 16 or ch<0:
@@ -232,71 +285,73 @@ class CurrentDriver(Instrument):
         str
             The response string returned by the instrument. (Should be 'Done' if no errors occur)
         """
+        self.flush_serial()
         res = self.inst.query("$U")
-        if res == 'Done':
+        if res.strip() == 'Done':
             if self.verbose:
                 print('[QLASS] DAC values updated.')
         else:
             print(f'[QLASS][ERROR] DAC values update failed; response = {res}')
         return res
-
-    def close(self) -> None:
-        """
-        Close the VISA connection to the instrument.
-
-        Notes
-        -----
-        Should always be called before program termination to release the COM resource.
-
-        Raises
-        ------
-        RuntimeError
-            If the resource cannot be cleanly closed.
-        """
-        try:
-            self.inst.close()
-            if self.verbose:
-                print("[QLASS] Connection closed.")
-        except Exception as e:
-            raise RuntimeError(f"[QLASS][ERROR] Failed to close connection: {e}.")
         
+
     # ------------------------------------------------------------------
     # Properties: instantaneous device state
     # ------------------------------------------------------------------
+
     @property
     def current(self) -> List[float]:
         """
         Instantaneous currents (mA).
         """
-        i = []
-        imax = self.range
-        for ch in range(16):
-            level_ch = float(self.query(f'$D{ch}?'))
-            i.append(imax*level_ch/(65535))        
-        return i
 
+        pass # TODO implement
 
     @property
     def range(self) -> float:
         """
         Current range currently employed (mA).
-        (Corresponding codes: 0 -> 2mA, 1 -> 20mA, 2 -> 47.72mA)
+        (Corresponding codes: 0 -> 2.77mA, 1 -> 25mA, 2 -> 47.72mA)
         """
-        
+
+
         res = self.inst.query("$F?")
-        code = int(res)
-        if code not in [0,1,2]:
-            raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: code retrieved is {res} (type: {type(res)})')
-            
+        print(f'res at line 311: {res}')
+        # Res is of format 'Calib.=0; FSR=0\n', therefore we split it
+        # in two, then split the parts around = and see which is the
+        parts = res.strip().split(';')
+        for part in parts:
+            key, value = part.strip().split('=')
+            if key == "FSR":
+                fsr = int(value)
+        self.flush_serial()
+
+        if fsr not in [0,1,2]:
+            raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
         else:
-            return self.ranges[code]
+            return self.ranges[fsr]
 
     @property
-    def voltage(self) -> List[float]:
+    def voltage(self) -> List[int]:
         """
-        Instantaneous voltages (V).
+        Instantaneous voltages (ADC level; TODO calibrate).
         """
-        pass #TODO: implement
+        self.flush_serial()
+        self.inst.write('$L')
+        # raw = self.inst.read_bytes(200, break_on_termchar=False)
+        # print(repr(raw))
+        # return [1]
+
+        lines = [self.inst.read() for _ in range(16)]
+        #The response to $L is the voltages at each channel, written as
+        # V_ADC[CH]=00XYZ\r\n
+        #so we can extract the ADC level of each channel as follows:
+        
+        out=[]
+        for this_ch in lines:
+            _,val = this_ch.strip().split('=')
+            out.append(int(val))      
+        return out
 
     @property
     def power(self) -> List[float]:
@@ -321,12 +376,14 @@ class CurrentDriver(Instrument):
         # return R
 
 
+
 if __name__ == "__main__":
 
     drv = None
 
     try:
         # Initialization on COM5
+        error = None
         drv = CurrentDriver('ASRL6::INSTR', timeout=2000, verbose=True)
 
         # Basic identification
@@ -335,10 +392,23 @@ if __name__ == "__main__":
         # Placeholder for future core operations
         # drv.set_current(10.0)
         drv.reset()
-
+        drv.set_current(ch=0,val=1.0)
+        drv.update()
+        input('Waiting for confirmation to proceed')
+        print(drv.voltage)
+        drv.set_current(ch=7,val=1.2)
+        drv.update()
+        input('Waiting for confirmation to proceed')
+        print(drv.voltage)
+        drv.reset()
+        
+    
     except Exception as e:
         print(f"{e}")
+        error = e
 
     finally:
         if drv is not None:
             drv.close()
+        if error is not None:
+            raise(error)
