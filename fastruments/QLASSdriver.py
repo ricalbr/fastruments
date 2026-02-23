@@ -82,7 +82,7 @@ class CurrentDriver(Instrument):
                            2:47.72}
             # Common terminators for serial interfaces
             self.inst.read_termination = "\n\r"
-            self.inst.write_termination = "\r"
+            self.inst.write_termination = "\n\r"
         except Exception as e:
             raise ConnectionError(
                 f"[QLASS][ERROR] Could not connect to current driver: {e}."
@@ -143,7 +143,6 @@ class CurrentDriver(Instrument):
         if self.verbose:
             print('[QLASS] Read buffer flushed.')
 
-
     def close(self) -> None:
         """
         Close the VISA connection to the instrument.
@@ -196,7 +195,7 @@ class CurrentDriver(Instrument):
 
         """
         # Retrieve current operating range
-        max_current = self.range
+        max_current = self.ranges[self.range]
 
         #Input sanity check
         if ch >= 16 or ch<0:
@@ -247,7 +246,7 @@ class CurrentDriver(Instrument):
 
         """
         # Retrieve current operating range
-        max_current = self.range
+        max_current = self.ranges[self.range]
 
         #Input sanity check
         if ch >= 16 or ch<0:
@@ -308,17 +307,16 @@ class CurrentDriver(Instrument):
         pass # TODO implement
 
     @property
-    def range(self) -> float:
+    def range(self) -> int:
         """
-        Current range currently employed (mA).
+        Current range currently employed (numerical code).
         (Corresponding codes: 0 -> 2.77mA, 1 -> 25mA, 2 -> 47.72mA)
         """
 
-
         res = self.inst.query("$F?")
-        print(f'res at line 311: {res}')
-        # Res is of format 'Calib.=0; FSR=0\n', therefore we split it
-        # in two, then split the parts around = and see which is the
+        # print(f'res at line 311: {res}')
+        # Res is of format 'Calib.=0; FSR=N', therefore we split it
+        # in two, then again around = and see which is the FSR
         parts = res.strip().split(';')
         for part in parts:
             key, value = part.strip().split('=')
@@ -329,7 +327,43 @@ class CurrentDriver(Instrument):
         if fsr not in [0,1,2]:
             raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
         else:
-            return self.ranges[fsr]
+            if self.verbose:
+                print(f'[QLASS] FSR = {fsr}.')
+            return fsr
+
+    @range.setter
+    def range(self,val: int):
+        """
+        Sets current range (numerical code). Technically, this method is the
+        setter function of the range property, and it is called whenever 
+        CurrentDriver.range = N is used.
+        (Corresponding codes: 0 -> 2.77mA, 1 -> 25mA, 2 -> 47.72mA)
+
+        Raises
+        ------
+            ValueError: if FSR to be set is not 0, 1, or 2
+        """
+        # Input sanity check
+        if val not in [0,1,2]:
+            raise ValueError(f'[QLASS][ERROR] Tried to set invalid FSR code : is {val} (type: {type(val)}), should be 0, 1 or 2 (type: int)')
+        
+        # Setting the FSR
+        res = self.inst.query(f"$F{val}")
+        # Res is of format 'Calib.=0; FSR=N', therefore we split it
+        # in two, then again around = and see which is the FSR
+        parts = res.strip().split(';')
+        for part in parts:
+            key, value = part.strip().split('=')
+            if key == "FSR":
+                fsr = int(value)
+        self.flush_serial()
+        
+        if fsr == val:
+            if self.verbose:
+                print(f'[QLASS] Current range set to {val} - now max current is {self.ranges[val]}mA.')
+            return
+        else:
+            raise RuntimeError(f'[QLASS][ERROR] Current range setting to {val} failed - retrieved FSR value is {fsr}.')
 
     @property
     def voltage(self) -> List[int]:
@@ -392,6 +426,7 @@ if __name__ == "__main__":
         # Placeholder for future core operations
         # drv.set_current(10.0)
         drv.reset()
+        #drv.range=1
         drv.set_current(ch=0,val=1.0)
         drv.update()
         input('Waiting for confirmation to proceed')
