@@ -16,7 +16,7 @@ The driver supports two primary operation modes:
 
 import pyvisa
 from pyvisa.constants import BufferOperation
-from Instrument import Instrument
+from fastruments.Instrument import Instrument
 from typing import List, Optional, Sequence, Union
 import numpy as np
 import time
