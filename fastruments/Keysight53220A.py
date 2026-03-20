@@ -46,7 +46,7 @@ class KEYSIGHT53220A(Instrument):
         
     def beep(self):
         self.inst.write("SYST:BEEP")
-        print("[AFG3011C] Beep command sent.")
+        print("[53220A] Beep command sent.")
         
     
     """
