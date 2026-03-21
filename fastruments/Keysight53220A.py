@@ -4,10 +4,11 @@ KEYSIGHT 55220A
 This module provides a high-level Python interface for controlling Keysight 
 55220A Universal frequency counter / timer via USB using the PyVISA library.
 
-Implements the core SCPI command set derived from the ...
+Implements the core SCPI command set derived from the Programmer manual
 manual
 
-The `AFG3011C` class allows for ...
+The `KEYSIGHT53220A` class allows for configuration, control and acquiring
+measurement from the frequency counter/timer
 
 """
 
