@@ -20,6 +20,7 @@ from fastruments.Instrument import Instrument
 from typing import List, Optional, Sequence, Union
 import numpy as np
 import time
+from fastruments import logger
 
 
 class CurrentDriver(Instrument):
@@ -40,7 +41,7 @@ class CurrentDriver(Instrument):
         update() method, applying directly the changes in DAC values
         (default: ``False``).
     verbose : bool, optional
-        If ``True``, prints informational messages (default: ``True``).
+        If ``True``, logs informational messages (default: ``True``).
 
     Attributes
     ----------
@@ -67,8 +68,8 @@ class CurrentDriver(Instrument):
         try:
             rm = pyvisa.ResourceManager()
             if self.verbose:
-                print(f'VISA backend: {rm.visalib}')
-                print(f'[QLASS] Attempting connection to {self.resource} out of the following resources found by pyvisa: {rm.list_resources()}.')
+                logger.info(f'VISA backend: {rm.visalib}')
+                logger.info(f'[QLASS] Attempting connection to {self.resource} out of the following resources found by pyvisa: {rm.list_resources()}.')
             self.inst = rm.open_resource(self.resource)
             # Specific serial configuration as requested
             self.inst.baud_rate = 460800
@@ -87,14 +88,16 @@ class CurrentDriver(Instrument):
             self.inst.read_termination = "\n\r"
             self.inst.write_termination = "\n\r"
         except Exception as e:
+            logger.error(f"[QLASS][ERROR] Could not connect to current driver: {e}.")
             raise ConnectionError(
                 f"[QLASS][ERROR] Could not connect to current driver: {e}."
             )
         try:
             self.idn()
             if self.verbose:
-                print("[QLASS] Connected successfully.")
+                logger.info("[QLASS] Connected successfully.")
         except Exception as e:
+            logger.error(f"[QLASS][ERROR] Failed to query IDN: {e}.")
             raise RuntimeError(f"[QLASS][ERROR] Failed to query IDN: {e}.")
 
     def idn(self) -> str:
@@ -110,11 +113,11 @@ class CurrentDriver(Instrument):
             # Using commands from the driver documentation:
             res = self.inst.query("$V").strip()
             if self.verbose:
-                print(f"[QLASS] Identification: {res}.")
+                logger.info(f"[QLASS] Identification: {res}.")
             return res
         except Exception:
             if self.verbose:
-                print("[QLASS][ERROR] IDN command not supported or no response.")
+                logger.error("[QLASS][ERROR] IDN command not supported or no response.")
             return "Unknown device."
 
     def reset(self) -> None:
@@ -130,7 +133,7 @@ class CurrentDriver(Instrument):
 
         self.flush_serial()
         if self.verbose:
-            print("[QLASS] Instrument reset.")
+            logger.info("[QLASS] Instrument reset.")
 
     def flush_serial(self):
         """
@@ -144,7 +147,7 @@ class CurrentDriver(Instrument):
         """
         self.inst.flush(BufferOperation.discard_read_buffer)
         if self.verbose:
-            print('[QLASS] Read buffer flushed.')
+            logger.info('[QLASS] Read buffer flushed.')
 
     def close(self) -> None:
         """
@@ -162,8 +165,9 @@ class CurrentDriver(Instrument):
         try:
             self.inst.close()
             if self.verbose:
-                print("[QLASS] Connection closed.")
+                logger.info("[QLASS] Connection closed.")
         except Exception as e:
+            logger.error(f"[QLASS][ERROR] Failed to close connection: {e}.")
             raise RuntimeError(f"[QLASS][ERROR] Failed to close connection: {e}.")
         
 
@@ -202,8 +206,10 @@ class CurrentDriver(Instrument):
 
         #Input sanity check
         if ch >= 16 or ch<0:
+            logger.error(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
             raise ValueError(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
         if val <0 or val >= max_current:
+            logger.error(f'[QLASS][ERROR] Current value higher than currently set compliance (set value: {val}mA, current compliance: {max_current}mA).')
             raise ValueError(f'[QLASS][ERROR] Current value higher than currently set compliance (set value: {val}mA, current compliance: {max_current}mA).')
 
         #Compute DAC value to apply
@@ -213,10 +219,11 @@ class CurrentDriver(Instrument):
         res = self.inst.query(f'$D{ch:02d},{val_DAC}')
         #Catch failed current application
         if res == 'Ready':
-            print(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
+            logger.error(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
+            raise RuntimeError(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
         else:
             if self.verbose:
-                print(f'[QLASS] Current at channel {ch} set to {val}mA (DAC value = {val_DAC}).')
+                logger.info(f'[QLASS] Current at channel {ch} set to {val}mA (DAC value = {val_DAC}).')
             if self.do_autoupdate:
                 self.update()
         
@@ -253,21 +260,24 @@ class CurrentDriver(Instrument):
 
         #Input sanity check
         if ch >= 16 or ch<0:
+            logger.error(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
             raise ValueError(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
         if val <0 or val >= 2**16:
+            logger.error(f'[QLASS][ERROR] Cannot set {val} to DAC: level must be between 0 and 65535.')
             raise ValueError(f'[QLASS][ERROR] Cannot set {val} to DAC: level must be between 0 and 65535.')
 
         #Compute DAC value to apply
-        val_mA = int(val*max_current/(2**16-1))
+        val_mA = val*max_current/(2**16-1)
 
         #Apply current
         res = self.inst.query(f'$D{ch:02d},{val}')
         #Catch failed current application
         if res == 'Ready':
-            print(f'[QLASS][ERROR] set_current_level(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val}).')
+            logger.error(f'[QLASS][ERROR] set_current_level(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val}).')
+            raise RuntimeError(f'[QLASS][ERROR] set_current_level(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val}).')
         else:
             if self.verbose:
-                print(f'[QLASS] Current at channel {ch} set to {val_mA}mA (DAC value = {val}).')
+                logger.info(f'[QLASS] Current at channel {ch} set to {val_mA:.2f}mA (DAC value = {val}).')
             if self.do_autoupdate:
                 self.update()
         
@@ -291,9 +301,10 @@ class CurrentDriver(Instrument):
         res = self.inst.query("$U")
         if res.strip() == 'Done':
             if self.verbose:
-                print('[QLASS] DAC values updated.')
+                logger.info('[QLASS] DAC values updated.')
         else:
-            print(f'[QLASS][ERROR] DAC values update failed; response = {res}')
+            logger.error(f'[QLASS][ERROR] DAC values update failed; response = {res}')
+            raise RuntimeError(f'[QLASS][ERROR] DAC values update failed; response = {res}')
         return res
         
 
@@ -317,7 +328,6 @@ class CurrentDriver(Instrument):
         """
 
         res = self.inst.query("$F?")
-        # print(f'res at line 311: {res}')
         # Res is of format 'Calib.=0; FSR=N', therefore we split it
         # in two, then again around = and see which is the FSR
         parts = res.strip().split(';')
@@ -328,10 +338,11 @@ class CurrentDriver(Instrument):
         self.flush_serial()
 
         if fsr not in [0,1,2]:
+            logger.error(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
             raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
         else:
             if self.verbose:
-                print(f'[QLASS] FSR = {fsr}.')
+                logger.info(f'[QLASS] FSR = {fsr}.')
             return fsr
 
     @range.setter
@@ -348,6 +359,7 @@ class CurrentDriver(Instrument):
         """
         # Input sanity check
         if val not in [0,1,2]:
+            logger.error(f'[QLASS][ERROR] Tried to set invalid FSR code : is {val} (type: {type(val)}), should be 0, 1 or 2 (type: int)')
             raise ValueError(f'[QLASS][ERROR] Tried to set invalid FSR code : is {val} (type: {type(val)}), should be 0, 1 or 2 (type: int)')
         
         # Setting the FSR
@@ -363,9 +375,10 @@ class CurrentDriver(Instrument):
         
         if fsr == val:
             if self.verbose:
-                print(f'[QLASS] Current range set to {val} - now max current is {self.ranges[val]}mA.')
+                logger.info(f'[QLASS] Current range set to {val} - now max current is {self.ranges[val]}mA.')
             return
         else:
+            logger.error(f'[QLASS][ERROR] Current range setting to {val} failed - retrieved FSR value is {fsr}.')
             raise RuntimeError(f'[QLASS][ERROR] Current range setting to {val} failed - retrieved FSR value is {fsr}.')
 
     @property
@@ -375,9 +388,7 @@ class CurrentDriver(Instrument):
         """
         self.flush_serial()
         self.inst.write('$L')
-        # raw = self.inst.read_bytes(200, break_on_termchar=False)
-        # print(repr(raw))
-        # return [1]
+
 
         lines = [self.inst.read() for _ in range(16)]
         #The response to $L is the voltages at each channel, written as
@@ -431,7 +442,7 @@ class CurrentDriver(Instrument):
     def current_mode(self,val: str) -> bool:
         '''
         Sets current mode to val.
-        'timing' functions as alias of 'sequence', but will print a warning.
+        'timing' functions as alias of 'sequence', but will log a warning.
         'idle' will call the idle function, setting the _current_mode to 'constant' in the process.
         
         Raises
@@ -442,10 +453,13 @@ class CurrentDriver(Instrument):
         valid_str = ['constant','idle','sequence','timing']
         if not isinstance(val,str):
             try:
+                logger.error(f'[QLASS][ERROR] Provided current mode {val} must be a string, is {type(val)}.')
                 raise TypeError(f'[QLASS][ERROR] Provided current mode {val} must be a string, is {type(val)}.')
             except:
+                logger.error(f'[QLASS][ERROR] Provided current mode is not a string and not convertible to one, is {type(val)}.')
                 raise TypeError(f'[QLASS][ERROR] Provided current mode is not a string and not convertible to one, is {type(val)}.')
         if val not in valid_str:
+            logger.error(f'[QLASS][ERROR] Provided current mode {val} is not among valid current modes.')
             raise ValueError(f'[QLASS][ERROR] Provided current mode {val} is not among valid current modes.')
         
         if val == 'constant':
@@ -456,7 +470,7 @@ class CurrentDriver(Instrument):
             self.idle()
         if val == 'timing':
             self.start_sequence_mode()
-            print('[QLASS][WARNING] Setting current_mode to sequences after current_mode = \'timing\' was called.')
+            logger.info('[QLASS][WARNING] Setting current_mode to sequences after current_mode = \'timing\' was called.')
 
         return
     
@@ -507,7 +521,7 @@ class CurrentDriver(Instrument):
         TODO testing
         '''
         if -1 in self._sequences:
-            print('[QLASS][WARNING] Uninitialized sequence elements detected.')
+            logger.info('[QLASS][WARNING] Uninitialized sequence elements detected.')
         self.inst.write('$t1')
         self.flush_serial()
         self._current_mode = 'sequence'
@@ -569,7 +583,7 @@ class CurrentDriver(Instrument):
         '''
 
         if self._current_mode == 'sequence':
-            print('[QLASS][WARNING] Tried to modify sequences while in sequence mode. Idling.')
+            logger.info('[QLASS][WARNING] Tried to modify sequences while in sequence mode. Idling.')
             self.idle()
             
 
@@ -578,21 +592,30 @@ class CurrentDriver(Instrument):
             pos = int(pos)
             time = int(time)
             val = int(val)
+
         except ValueError:
+            logger.error('[QLASS][ERRROR] Invalid input values of set_sequence_element:\n'
+                            f'ch = {ch}, pos = {pos}, time = {time}, val = {val}')
             raise ValueError('[QLASS][ERRROR] Invalid input values of set_sequence_element:\n'
                             f'ch = {ch}, pos = {pos}, time = {time}, val = {val}')
         except TypeError:
+            logger.error('[QLASS][ERRROR] Invalid input type of set_sequence_element:\n'
+                            f'ch = {type(ch)}, pos = {type(pos)}, time = {type(time)}, val = {type(val)}')
             raise TypeError('[QLASS][ERRROR] Invalid input type of set_sequence_element:\n'
                             f'ch = {type(ch)}, pos = {type(pos)}, time = {type(time)}, val = {type(val)}')
 
         # input sanity check
         if ch < 0 or ch >= 16:
+            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 15')
             raise ValueError(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 15')
         if pos < 0 or pos >= 8:
+            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 7')
             raise ValueError(f'[QLASS][ERROR] pos = {pos} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 7')
         if time < 0 or time >= 1000:
+            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 999')
             raise ValueError(f'[QLASS][ERROR] time = {time} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 999')
         if val < 0 or val >= 65536:
+            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 65535')
             raise ValueError(f'[QLASS][ERROR] val = {val} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 65535')
         
         #send command to board
@@ -603,6 +626,7 @@ class CurrentDriver(Instrument):
         if res.strip() != exp_res:
             self._sequences[ch,pos,0] = -1
             self._sequences[ch,pos,1] = -1
+            logger.error(f'[QLASS][ERROR] Failed sequence element writing: set_sequence_element({ch},{pos},{time},{val}) -> {res}')
             raise RuntimeError(f'[QLASS][ERROR] Failed sequence element writing: set_sequence_element({ch},{pos},{time},{val}) -> {res}')
 
         #update sequences array
@@ -610,7 +634,7 @@ class CurrentDriver(Instrument):
         self._sequences[ch,pos,1] = val
 
         if self.verbose:
-            print(f'[QLASS] Element set for channel {ch}, position {pos}: val = {val} for {time} steps')
+            logger.info(f'[QLASS] Element set for channel {ch}, position {pos}: val = {val} for {time} steps')
         return
     
     
@@ -635,9 +659,12 @@ class CurrentDriver(Instrument):
         # input sanity checks
         time_arr = np.squeeze(time_arr)
         val_arr = np.squeeze(val_arr)
+
         if time_arr.shape != (8,):
+            logger.error(f'[QLASS][ERROR] Invalid shape for time_arr: {time_arr.shape} (must be (8,))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for time_arr: {time_arr.shape} (must be (8,))')
         if val_arr.shape != (8,):
+            logger.error(f'[QLASS][ERROR] Invalid shape for val_arr: {val_arr.shape} (must be (8,))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for val_arr: {val_arr.shape} (must be (8,))')
         
         for i, (t, v) in enumerate(zip(time_arr, val_arr)):
@@ -667,8 +694,10 @@ class CurrentDriver(Instrument):
         val_seqs = np.squeeze(val_seqs)
 
         if time_seqs.shape != (16,8):
+            logger.error(f'[QLASS][ERROR] Invalid shape for time_seqs: {time_seqs.shape} (must be (16,8))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for time_seqs: {time_seqs.shape} (must be (16,8))')
         if val_seqs.shape != (16,8):
+            logger.error(f'[QLASS][ERROR] Invalid shape for val_seqs: {val_seqs.shape} (must be (16,8))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for val_seqs: {val_seqs.shape} (must be (16,8))')
         
         for i in range(16):
@@ -682,7 +711,7 @@ class CurrentDriver(Instrument):
         '''
         was_verbose = self.verbose
         if was_verbose:
-            print('[QLASS] Initializing sequences to zero.')
+            logger.info('[QLASS] Initializing sequences to zero.')
             self.verbose = False
 
         try:
@@ -709,12 +738,10 @@ if __name__ == "__main__":
         # Placeholder for future core operations
         # drv.set_current(10.0)
         drv.reset()
-        #drv.range=1
-        drv.set_current(ch=0,val=1.0)
-        drv.update()
+        drv.range=0
         input('Waiting for confirmation to proceed')
-        print(drv.voltage)
-        drv.set_current(ch=7,val=1.2)
+
+        drv.set_current_level(ch=15,val=20000)
         drv.update()
         input('Waiting for confirmation to proceed')
         print(drv.voltage)
