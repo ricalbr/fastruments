@@ -84,6 +84,8 @@ class CurrentDriver(Instrument):
                            2:47.72}
             self._sequences = np.full((16,8,2),fill_value=-1,dtype=int)
             self._current_mode = 'constant'
+            self._current = np.zeros((16,),dtype = int)         # Currents outputted by the device
+            self._current_buffer = np.zeros((16,),dtype = int)  # Currents waiting for self.update()
             # Common terminators for serial interfaces
             self.inst.read_termination = "\n\r"
             self.inst.write_termination = "\n\r"
@@ -199,18 +201,31 @@ class CurrentDriver(Instrument):
         ValueError
             If current exceeds the active current compliance.
             If an invalid channel number is provided.
+        TypeError
+            If ch is not an int, and if val cannot be converted to a float.
 
         """
-        # Retrieve current operating range
-        max_current = self.ranges[self.range]
 
         #Input sanity check
+        if not isinstance(ch,int):
+            logger.error(f'[QLASS][ERROR] Channel must be an int, but it is {type(ch)}')
+            raise TypeError(f'[QLASS][ERROR] Channel must be an int, but it is {type(ch)}')
+        
+        try:
+            val = float(val)
+        except TypeError:
+            logger.error(f'[QLASS][ERROR] Current value must be float or convertible to float, but it is {type(val)}')
+            raise TypeError(f'[QLASS][ERROR] Current value must be float or convertible to float, but it is {type(val)}')
+
         if ch >= 16 or ch<0:
             logger.error(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
             raise ValueError(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
         if val <0 or val >= max_current:
             logger.error(f'[QLASS][ERROR] Current value higher than currently set compliance (set value: {val}mA, current compliance: {max_current}mA).')
             raise ValueError(f'[QLASS][ERROR] Current value higher than currently set compliance (set value: {val}mA, current compliance: {max_current}mA).')
+
+        # Retrieve current operating range
+        max_current = self.ranges[self.range]
 
         #Compute DAC value to apply
         val_DAC = int(val/max_current*(2**16-1))
@@ -222,6 +237,7 @@ class CurrentDriver(Instrument):
             logger.error(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
             raise RuntimeError(f'[QLASS][ERROR] set_current(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val_DAC}).')
         else:
+            self._current_buffer[ch] = val_DAC
             if self.verbose:
                 logger.info(f'[QLASS] Current at channel {ch} set to {val}mA (DAC value = {val_DAC}).')
             if self.do_autoupdate:
@@ -253,12 +269,17 @@ class CurrentDriver(Instrument):
         ValueError
             If an invalid current level is provided.
             If an invalid channel number is provided.
+        TypeError
+            If ch or val are not int.
 
         """
         # Retrieve current operating range
         max_current = self.ranges[self.range]
 
         #Input sanity check
+        if (not isinstance(ch,int)) or (not isinstance(val,int)):
+            raise TypeError(f'[QLASS][ERROR] Check types of input variables: ch -> {type(ch)}; val -> {type(val)} (must be both int)')
+
         if ch >= 16 or ch<0:
             logger.error(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
             raise ValueError(f'[QLASS][ERROR] Channel number {ch} is invalid (must be between 0 and 15).')
@@ -276,6 +297,7 @@ class CurrentDriver(Instrument):
             logger.error(f'[QLASS][ERROR] set_current_level(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val}).')
             raise RuntimeError(f'[QLASS][ERROR] set_current_level(ch={ch},val={val}) method failed being delivered to the board (DAC value = {val}).')
         else:
+            self._current_buffer[ch] = val
             if self.verbose:
                 logger.info(f'[QLASS] Current at channel {ch} set to {val_mA:.2f}mA (DAC value = {val}).')
             if self.do_autoupdate:
@@ -299,7 +321,9 @@ class CurrentDriver(Instrument):
         """
         self.flush_serial()
         res = self.inst.query("$U")
+
         if res.strip() == 'Done':
+            self._current = self._current_buffer.copy()
             if self.verbose:
                 logger.info('[QLASS] DAC values updated.')
         else:
@@ -313,12 +337,31 @@ class CurrentDriver(Instrument):
     # ------------------------------------------------------------------
 
     @property
-    def current(self) -> List[float]:
+    def current(self) -> Sequence[int]:
         """
-        Instantaneous currents (mA).
+        Instantaneous currents DAC level.
+        Since this is the DAC level, it does NOT account for the FSR employed currently.
+        This property is READ ONLY and should be considered as a logging variable.
+        To write currents at each pin, use the set_current or set_current_level methods
+        with either autoUpdate or self.update().
         """
+        out = self._current.copy()
+        out.setflags(write=False)
+        return out
+    
 
-        pass # TODO implement
+    @property
+    def current_buffer(self) -> Sequence[int]:
+        """
+        Current DAC levels that have been received by the driver, but have not been updated yet.
+        These get copied to self._current when self.update() is called.
+        Like current, this is a READ ONLY property; modify the actual current value with the 
+        set_current and set_current_level methods.
+        """
+        out = self._current_buffer.copy()
+        out.setflags(write=False)
+        return out
+
 
     @property
     def range(self) -> int:
@@ -344,6 +387,7 @@ class CurrentDriver(Instrument):
             if self.verbose:
                 logger.info(f'[QLASS] FSR = {fsr}.')
             return fsr
+
 
     @range.setter
     def range(self,val: int):
@@ -380,6 +424,7 @@ class CurrentDriver(Instrument):
         else:
             logger.error(f'[QLASS][ERROR] Current range setting to {val} failed - retrieved FSR value is {fsr}.')
             raise RuntimeError(f'[QLASS][ERROR] Current range setting to {val} failed - retrieved FSR value is {fsr}.')
+
 
     @property
     def voltage(self) -> List[int]:
