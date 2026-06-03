@@ -273,9 +273,7 @@ class CurrentDriver(Instrument):
             If ch or val are not int.
 
         """
-        # Retrieve current operating range
-        max_current = self.ranges[self.range]
-
+        
         #Input sanity check
         if (not isinstance(ch,int)) or (not isinstance(val,int)):
             raise TypeError(f'[QLASS][ERROR] Check types of input variables: ch -> {type(ch)}; val -> {type(val)} (must be both int)')
@@ -286,8 +284,11 @@ class CurrentDriver(Instrument):
         if val <0 or val >= 2**16:
             logger.error(f'[QLASS][ERROR] Cannot set {val} to DAC: level must be between 0 and 65535.')
             raise ValueError(f'[QLASS][ERROR] Cannot set {val} to DAC: level must be between 0 and 65535.')
+        
+        # Retrieve current operating range
+        max_current = self.ranges[self.range]
 
-        #Compute DAC value to apply
+        #Compute actual current to apply
         val_mA = val*max_current/(2**16-1)
 
         #Apply current
@@ -369,16 +370,24 @@ class CurrentDriver(Instrument):
         Current range currently employed (numerical code).
         (Corresponding codes: 0 -> 2.77mA, 1 -> 25mA, 2 -> 47.72mA)
         """
+        self.flush_serial()
+        res = self.inst.query('$F')
+        if 'FSR=' not in res.strip():
+            logger.error(f'[QLASS][ERROR] Current range reading failed: response is {repr(res)}')
+            raise RuntimeError(f'[QLASS][ERROR] Current range reading failed: response is {repr(res)}')
 
-        res = self.inst.query("$F?")
         # Res is of format 'Calib.=0; FSR=N', therefore we split it
         # in two, then again around = and see which is the FSR
-        parts = res.strip().split(';')
-        for part in parts:
-            key, value = part.strip().split('=')
-            if key == "FSR":
-                fsr = int(value)
-        self.flush_serial()
+        try:
+            parts = res.strip().split(';')
+            for part in parts:
+                key, value = part.strip().split('=')
+                if key == "FSR":
+                    fsr = int(value)
+        except:
+            logger.error(f'[QLASS][ERROR] Invalid current range reading response retrieved: response is {res.strip()}')
+            raise RuntimeError(f'[QLASS][ERROR] Invalid current range reading response retrieved : response is {res.strip()}')
+        
 
         if fsr not in [0,1,2]:
             logger.error(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
@@ -408,13 +417,23 @@ class CurrentDriver(Instrument):
         
         # Setting the FSR
         res = self.inst.query(f"$F{val}")
+
+        if 'FSR=' not in res.strip():
+            logger.error(f'[QLASS][ERROR] Current range setting failed: sent $F{val} - response is {res.strip()}')
+            raise RuntimeError(f'[QLASS][ERROR] Current range setting failed: sent $F{val} - response is {res.strip()}')
+
         # Res is of format 'Calib.=0; FSR=N', therefore we split it
         # in two, then again around = and see which is the FSR
-        parts = res.strip().split(';')
-        for part in parts:
-            key, value = part.strip().split('=')
-            if key == "FSR":
-                fsr = int(value)
+        try:
+            parts = res.strip().split(';')
+            for part in parts:
+                key, value = part.strip().split('=')
+                if key == "FSR":
+                    fsr = int(value)
+        except:
+            logger.error(f'[QLASS][ERROR] Invalid current range response setting retrieved: sent $F{val} - response is {res.strip()}')
+            raise RuntimeError(f'[QLASS][ERROR] Invalid current range response setting retrieved : sent $F{val} - response is {res.strip()}')
+        
         self.flush_serial()
         
         if fsr == val:
@@ -547,8 +566,16 @@ class CurrentDriver(Instrument):
         '''
         Sets manually the current to all channels to zero.
         '''
+        was_verbose = self.verbose
+        if was_verbose:
+            logger.info('[QLASS] Setting all channels to zero.')
+            self.verbose = False
+
         for i in range(16):
             self.set_current_level(i,0)
+        
+        self.verbose = was_verbose
+        return
 
 
     def start_constant_mode(self) -> None:
@@ -556,8 +583,12 @@ class CurrentDriver(Instrument):
         Start application of the saved values to the DACs in a constant 
         manner.
         '''
-        self.inst.write('$t0')
+        self.inst.query('$t0')
+        self.flush_serial()
         self._current_mode = 'constant'
+        if self.verbose:
+            logger.info('[QLASS] Constant mode started.')
+        return
 
 
     def start_sequence_mode(self) -> None:
@@ -567,18 +598,22 @@ class CurrentDriver(Instrument):
         '''
         if -1 in self._sequences:
             logger.info('[QLASS][WARNING] Uninitialized sequence elements detected.')
-        self.inst.write('$t1')
+        self.inst.query('$t1')
         self.flush_serial()
         self._current_mode = 'sequence'
+        if self.verbose:
+            logger.info('[QLASS] Sequence mode started.')
+        return
     
 
     def idle(self) -> None:
         '''
         Sets the board in an idle state: constant mode + zero current at DACs.
         '''
-        self.set_zero()
         self.start_constant_mode()
+        self.set_zero()
         self._current_mode = 'constant'
+        return
 
 
     @property
@@ -760,7 +795,7 @@ class CurrentDriver(Instrument):
             self.verbose = False
 
         try:
-            self.set_all_sequences(time_seqs = np.full((16,8),fill_value=999,dtype=int), val_seqs = np.zeros((16,8),dtype=int))
+            self.set_all_sequences(time_seqs = np.full((16,8),fill_value=0,dtype=int), val_seqs = np.zeros((16,8),dtype=int))
         finally:
             self.verbose = was_verbose
 
