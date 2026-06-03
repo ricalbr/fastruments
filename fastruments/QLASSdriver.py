@@ -86,6 +86,7 @@ class CurrentDriver(Instrument):
             self._current_mode = 'constant'
             self._current = np.zeros((16,),dtype = int)         # Currents outputted by the device
             self._current_buffer = np.zeros((16,),dtype = int)  # Currents waiting for self.update()
+            self._range = None
             # Common terminators for serial interfaces
             self.inst.read_termination = "\n\r"
             self.inst.write_termination = "\n\r"
@@ -134,8 +135,10 @@ class CurrentDriver(Instrument):
             res = self.inst.read()
 
         self.flush_serial()
+        self._range = 0
         if self.verbose:
             logger.info("[QLASS] Instrument reset.")
+
 
     def flush_serial(self):
         """
@@ -328,8 +331,8 @@ class CurrentDriver(Instrument):
             if self.verbose:
                 logger.info('[QLASS] DAC values updated.')
         else:
-            logger.error(f'[QLASS][ERROR] DAC values update failed; response = {res}')
-            raise RuntimeError(f'[QLASS][ERROR] DAC values update failed; response = {res}')
+            logger.error(f'[QLASS][ERROR] DAC values update failed; response = {repr(res)}')
+            raise RuntimeError(f'[QLASS][ERROR] DAC values update failed; response = {repr(res)}')
         return res
         
 
@@ -364,8 +367,7 @@ class CurrentDriver(Instrument):
         return out
 
 
-    @property
-    def range(self) -> int:
+    def read_range(self) -> int:
         """
         Current range currently employed (numerical code).
         (Corresponding codes: 0 -> 2.77mA, 1 -> 25mA, 2 -> 47.72mA)
@@ -390,13 +392,26 @@ class CurrentDriver(Instrument):
         
 
         if fsr not in [0,1,2]:
-            logger.error(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
-            raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: is {res} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
+            logger.error(f'[QLASS][ERROR] Invalid FSR code retrieved: is {fsr} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
+            raise RuntimeError(f'[QLASS][ERROR] Invalid FSR code retrieved: is {fsr} (type: {type(res)}), should be 0, 1 or 2 (type: int)')
         else:
             if self.verbose:
                 logger.info(f'[QLASS] FSR = {fsr}.')
+            self._range = fsr
             return fsr
 
+
+    @property
+    def range(self):
+        """
+        Retrieves current range (0, 1, or 2).
+        """
+        if self._range in [0,1,2]:
+            return self._range
+        else:
+            logger.error(f'[QLASS][ERROR] Stored range value is invalid: {repr(self._range)}')
+            raise RuntimeError(f'[QLASS][ERROR] Stored range value is invalid: {repr(self._range)}')
+        
 
     @range.setter
     def range(self,val: int):
@@ -437,6 +452,7 @@ class CurrentDriver(Instrument):
         self.flush_serial()
         
         if fsr == val:
+            self._range = val
             if self.verbose:
                 logger.info(f'[QLASS] Current range set to {val} - now max current is {self.ranges[val]}mA.')
             return
@@ -573,6 +589,7 @@ class CurrentDriver(Instrument):
 
         for i in range(16):
             self.set_current_level(i,0)
+        self.update()
         
         self.verbose = was_verbose
         return
@@ -594,7 +611,6 @@ class CurrentDriver(Instrument):
     def start_sequence_mode(self) -> None:
         '''
         Start application of the saved sequences. 
-        TODO testing
         '''
         if -1 in self._sequences:
             logger.info('[QLASS][WARNING] Uninitialized sequence elements detected.')
@@ -691,9 +707,9 @@ class CurrentDriver(Instrument):
         if pos < 0 or pos >= 8:
             logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 7')
             raise ValueError(f'[QLASS][ERROR] pos = {pos} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 7')
-        if time < 0 or time >= 1000:
-            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 999')
-            raise ValueError(f'[QLASS][ERROR] time = {time} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 999')
+        if time < 0 or time >= 256:
+            logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 255')
+            raise ValueError(f'[QLASS][ERROR] time = {time} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 255')
         if val < 0 or val >= 65536:
             logger.error(f'[QLASS][ERROR] ch = {ch} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 65535')
             raise ValueError(f'[QLASS][ERROR] val = {val} in set_sequence_element({ch},{pos},{time},{val}): must be between 0 and 65535')
@@ -701,7 +717,6 @@ class CurrentDriver(Instrument):
         #send command to board
         res = self.inst.query(f'$s{ch:02d},{pos:01d},{time:03d},{val}')
         exp_res = f'ch{ch:02d} [step{pos:01d}] for {time:03d} cycles = {val}'
-        # TODO check whether self.update is needed here
         
         if res.strip() != exp_res:
             self._sequences[ch,pos,0] = -1
@@ -787,7 +802,7 @@ class CurrentDriver(Instrument):
 
     def initialize_sequences(self):
         '''
-        Sets the values of all elements in the sequence to 0 mA for 500 ms.
+        Sets the values of all elements in the sequence to 0 mA for 500 us.
         '''
         was_verbose = self.verbose
         if was_verbose:
