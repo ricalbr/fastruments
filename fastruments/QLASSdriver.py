@@ -28,7 +28,6 @@ class CurrentDriver(Instrument):
     High-level interface for the QLASS current driver.
 
     This class handles the custom serial protocol developed by the DEIB team.
-    TODO: implement timing mode.
 
     Parameters
     ----------
@@ -762,9 +761,15 @@ class CurrentDriver(Instrument):
             logger.error(f'[QLASS][ERROR] Invalid shape for val_arr: {val_arr.shape} (must be (8,))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for val_arr: {val_arr.shape} (must be (8,))')
         
+        was_verbose = self.verbose
+        if was_verbose:
+            self.verbose = False
+            logger.info(f'[QLASS] Setting sequence of channel {ch} in progress.')
+        
         for i, (t, v) in enumerate(zip(time_arr, val_arr)):
             self.set_sequence_element(ch, i, t, v)
         
+        self.verbose = was_verbose
         return
     
     
@@ -795,8 +800,15 @@ class CurrentDriver(Instrument):
             logger.error(f'[QLASS][ERROR] Invalid shape for val_seqs: {val_seqs.shape} (must be (16,8))')
             raise ValueError(f'[QLASS][ERROR] Invalid shape for val_seqs: {val_seqs.shape} (must be (16,8))')
         
+        was_verbose = self.verbose
+        if was_verbose:
+            self.verbose = False
+            logger.info('[QLASS] Setting whole sequences matrix in progress.')
+
         for i in range(16):
             self.set_sequence_array(i,time_seqs[i],val_seqs[i])
+
+        self.verbose = was_verbose
         return
     
 
