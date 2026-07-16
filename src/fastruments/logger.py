@@ -40,3 +40,6 @@ class CustomConsoleFormatter(logging.Formatter):
         timestamp = f"{self.DIM}{self.FG_GRAY}{ts}{self.RESET}"
 
         return f"{timestamp}  {level}  {module} : {message}"
+
+logger = logging.getLogger("fastruments")
+logger.setLevel(logging.DEBUG)

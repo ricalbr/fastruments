@@ -9,7 +9,7 @@ import logging
 from typing import Literal
 import time
 import numpy as np
-from fastruments import logger
+from fastruments.logger import logger
 
 from fastruments.Instrument import Instrument
 
@@ -349,7 +349,7 @@ class OPM150(Instrument):
             _ret = self._dll.CloseDriver()
             self._check("CloseDriver", _ret)
             self._is_connection_open = False
-            self.logger.info("Power meter connection has been closed.")
+            logger.info("Power meter connection has been closed.")
 
     def get_module_USB_handle(self, module: int) -> int:
         """
@@ -367,7 +367,7 @@ class OPM150(Instrument):
         """
 
         handle = self._dll.ActiveModule(ctypes.c_int(module))
-        self.logger.debug(f"ActiveModule({module}) -> {handle}")
+        logger.debug(f"ActiveModule({module}) -> {handle}")
         return handle
 
     def open_USB_device(self, dev_number: int) -> int:
@@ -387,7 +387,7 @@ class OPM150(Instrument):
         handle = ctypes.c_uint64()
         _ret = self._dll.OpenUSBDevice(ctypes.c_int(dev_number), ctypes.byref(handle))
         self._check("OpenUSBDevice", _ret)
-        self.logger.debug(
+        logger.debug(
             f"OpenUSBDevice(dev_number={dev_number}) -> handle={handle.value}"
         )
         return handle.value
