@@ -28,9 +28,11 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["fastruments"]
 include-package-data = true
 zip-safe = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 fastruments = ["dll/*.dll"]

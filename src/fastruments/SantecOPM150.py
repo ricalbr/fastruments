@@ -2,7 +2,7 @@ import ctypes
 import enum
 import pathlib
 from typing import Optional
-from helpers import DllBinder
+from fastruments.helpers import DllBinder
 import sys
 import os
 import logging
@@ -11,7 +11,7 @@ import time
 import numpy as np
 from fastruments import logger
 
-from Instrument import Instrument
+from fastruments.Instrument import Instrument
 
 
 class ErrorCodes(enum.IntEnum):

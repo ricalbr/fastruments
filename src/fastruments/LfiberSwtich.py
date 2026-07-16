@@ -16,7 +16,7 @@ Supported models include:
 import time
 
 import pyvisa
-from Instrument import Instrument
+from fastruments.Instrument import Instrument
 from fastruments import logger
 
 class FiberSwitch(Instrument):
