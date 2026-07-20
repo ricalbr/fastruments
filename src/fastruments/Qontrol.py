@@ -474,7 +474,7 @@ if __name__ == "__main__":
         drv = Q8iv("COM4", init_mode="i", transient=0.2, verbose=True)
 
         # Utility operations
-        drv.set_compliance(imax=20.0, vmax=10.0)
+        drv.set_compliance(imax=13.0, vmax=10.0)
 
         # Core I/V operations
         drv.set_current(0, 5.0)
