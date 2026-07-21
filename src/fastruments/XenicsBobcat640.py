@@ -395,7 +395,7 @@ class Xenics(Instrument):
 
         self._cam = handle
         self._is_open = True
-        logger.debug(f"Connection is OK.")
+        logger.debug("Connection is OK.")
 
     def close(self) -> None:
         """Stop capture (if running) and close the camera."""
@@ -460,7 +460,7 @@ class Xenics(Instrument):
             self._dll._check_error(self._dll.XC_LoadSettings(self._cam, fname.encode()))
             logger.debug(f"Setting file {fname.encode()} has been loaded.")
 
-    def grab_frame(self, filename: str):
+    def grab_frame(self, filename: str = ""):
         """Acquire a single frame and save it to disk.
 
         Parameters
@@ -497,7 +497,13 @@ class Xenics(Instrument):
             count=frame_size // pixel_size,
         ).reshape((height, width))
 
-        Image.fromarray(frame).save(filename)
+        if filename:   
+            # controllare che ci sia una estensione di tipo tiff (filename finisce per .tiff)
+            # se non c'è aggiungila così il filename è un nome valido.
+            if not filename.endswith(".tiff"): # pathlib per controllare/aggiungere le estensioni
+                filename += ".tiff"
+            #ciaomamma.tiff
+            Image.fromarray(frame).save(filename)
         logger.info('Grabbed frame.')
         return frame
 
@@ -517,12 +523,24 @@ class Xenics(Instrument):
 
 if __name__ == "__main__":
 
-    camera = Xenics(url="cam://0", calibration_file=CAL_PATH)
+    camera = Xenics(url="gev://192.168.1.11", calibration_file=CAL_PATH)
     # one can also connect via: url="gev://192.168.1.11"
     
     camera.connect()
-    time.sleep(1)
-    im = camera.grab_frame("trial_w_settings.tiff")
-    plt.imshow(im)
-    plt.show()
+    
+    
+    frames = []
+    for _ in range(10):
+        ## UPP operation 
+        
+        time.sleep(1)
+        frames.append(camera.grab_frame("ciaomamma"))
+    
+        # UPP operation
+        
+        # plt.imshow(im)
+        # plt.show()
     camera.close()
+    
+    
+    # frames -> salvare, analizzare, plottare
