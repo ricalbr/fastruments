@@ -463,3 +463,19 @@ class KeysightSM(Instrument):
             raise ValueError("Channel value can be either 1 or 2")
         self.instrument.write(f':OUTP{channel}:STAT OFF')
         print(f"Channel {channel} is off")
+        
+    def enable_channel(self, channel: int):
+        """
+        Enable the output of the selected channel.
+
+        Parameters
+        ----------
+        channel : int
+            Channel number (1 or 2).
+        """
+        if not isinstance(channel, int):
+            raise TypeError("Channel value has to be an integer number")
+        if channel not in (1, 2):
+            raise ValueError("Channel value can be either 1 or 2")
+        self.instrument.write(f':OUTP{channel}:STAT ON')
+        print(f"Channel {channel} is on")
