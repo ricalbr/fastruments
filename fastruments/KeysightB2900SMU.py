@@ -241,7 +241,7 @@ class KeysightSM(Instrument):
             raise TypeError("Channel value has to be an integer number")
         if channel not in (1, 2):
             raise ValueError("Channel value can be either 1 or 2")
-        self.instrument.write(':SENS:FUNC:OFF:ALL')
+        self.instrument.write(f':SENS{channel}:FUNC:OFF:ALL')
         self.instrument.write(f':SENS{channel}:FUNC:ON "{mode}"; :FORM:ELEM:SENS {mode}')
         # self.instrument.write(f':SENS{self._channel}:FUNC:ON "{mode}"')
         print(f"Measurement mode on channel {channel} set to {mode}")
