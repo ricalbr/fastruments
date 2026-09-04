@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 import os
 
-from Instrument import Instrument
+from fastruments.Instrument import Instrument
 
 CWD = pathlib.Path(__file__).resolve().parent
 os.add_dll_directory(CWD / "dll")
@@ -113,7 +113,12 @@ class XenicsDLL:
         binder.bind(self, "XC_LoadColourProfile", ctypes.c_ulong, (ctypes.c_char_p,))
 
         # Property access
-        binder.bind(self, "XC_SetPropertyValue", ctypes.c_ulong)
+        binder.bind(
+            self, 
+            "XC_SetPropertyValue", 
+            ctypes.c_ulong, 
+            (ctypes.c_int32, ctypes.c_char_p, ctypes.c_char_p)
+        )
         binder.bind(
             self,
             "XC_GetPropertyValueL",
@@ -438,6 +443,30 @@ class Xenics(Instrument):
         self._dll._check_error(self._dll.XC_StopCapture(self._cam))
         self._is_capturing = False
         logger.info("Stop capturing.")
+        
+    def set_exposure(self, exposure_us: int) -> None:
+        """Set the camera exposure time in microseconds."""
+        self._require_open()
+        
+        import ctypes
+        
+        prop_name = b"IntegrationTime"
+        prop_val = str(exposure_us).encode('utf-8')
+        unit_val = b""
+        
+        raw_func = self._dll._dll.XC_SetPropertyValue
+        raw_func.argtypes = [
+            ctypes.c_int32,  # Handle
+            ctypes.c_char_p, # Property Name
+            ctypes.c_char_p, # Property Value
+            ctypes.c_char_p  # Unit (DEVE essere passato)
+        ]
+        raw_func.restype = ctypes.c_ulong
+        
+        err_code = raw_func(self._cam, prop_name, prop_val, unit_val)
+        
+        self._dll._check_error(err_code)
+        logger.info(f"Exposure set to {exposure_us} us.")
 
     def load_calibration(self, filename: str | None = None) -> None:
         fname = filename if filename is not None else self._calibration_file

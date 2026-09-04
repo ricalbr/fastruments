@@ -388,7 +388,7 @@ if __name__ == "__main__":
 
         # Channel control
         osw.get_channel()
-        osw.set_channel(5)
+        osw.set_channel(1)
         osw.get_channel()
 
     except Exception as e:
