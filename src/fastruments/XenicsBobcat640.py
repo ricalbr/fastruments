@@ -459,7 +459,7 @@ class Xenics(Instrument):
             ctypes.c_int32,  # Handle
             ctypes.c_char_p, # Property Name
             ctypes.c_char_p, # Property Value
-            ctypes.c_char_p  # Unit (DEVE essere passato)
+            ctypes.c_char_p  # Unit
         ]
         raw_func.restype = ctypes.c_ulong
         
@@ -467,7 +467,7 @@ class Xenics(Instrument):
         
         self._dll._check_error(err_code)
         logger.info(f"Exposure set to {exposure_us} us.")
-
+        
     def load_calibration(self, filename: str | None = None) -> None:
         fname = filename if filename is not None else self._calibration_file
         if fname is None:
